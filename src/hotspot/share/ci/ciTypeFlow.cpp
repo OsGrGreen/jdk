@@ -2700,10 +2700,38 @@ void ciTypeFlow::build_loop_tree(Block* blk) {
       }
     }
 
+    
+    // Remove irreducibility
+#ifndef PRODUCT
+    int m = 0;
+    if(CIIrrDebug){
+    	if(lp->head()->is_post_visited() && lp != loop_tree_root()){
+        tty->print_cr("Loop is irreducible. \n Num preds are: %d", succ->predecessors()->length()); 
+		    //TODO: We must also update the loop node here!
+	    	for (int i = 0; i < succ->predecessors()->length(); ++i) {
+          tty->print_cr("Adding clone to successor %d", i); 
+          Block* pred = succ->predecessors()->at(i);
+          Block* clone = block_at(succ->start(), succ->jsrs(), create_public_copy);
+          tty->print_cr("Removing successor"); 
+          pred->successors()->remove(succ);
+          tty->print_cr("Adding clone %d", i); 
+          pred->successors()->push(clone);
+          tty->print_cr("Adding clone %d to work list (?)", i); 
+          pred->set_next(clone);
+          if (!clone->is_on_work_list()) {
+            // Assume irreducible entries need more data flow
+            add_to_work_list(clone);
+          }
+		    }
+	    }
+	    m = m + 1;	    
+	  }
+#endif
+    // TODO: Update this check in some way...
     // Check for irreducible loop.
     // Successor has already been visited. If the successor's loop head
     // has already been post-visited, then this is another entry into the loop.
-    while (lp->head()->is_post_visited() && lp != loop_tree_root()) {
+    while (lp->head()->is_post_visited() && lp != loop_tree_root() && !CIIrrDebug) {
       _has_irreducible_entry = true;
       lp->set_irreducible(succ);
       if (!succ->is_on_work_list()) {

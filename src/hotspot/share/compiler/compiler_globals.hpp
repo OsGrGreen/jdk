@@ -64,6 +64,8 @@
                                                                             \
   develop(bool, CITimeVerbose, false,                                       \
           "be more verbose in compilation timings")                         \
+  develop(bool, CIIrrDebug, false, 					    \
+	  "display more irreducibility debug information") 		    \
                                                                             \
   develop(bool, CITimeEach, false,                                          \
           "display timing information after each successful compilation")   \

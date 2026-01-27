@@ -517,6 +517,14 @@ Parse::Parse(JVMState* caller, ciMethod* parse_method, float expected_uses)
     _flow = method()->get_flow_analysis();
   }
 
+#ifndef PRODUCT
+  if (CIIrrDebug) {
+  	if (_flow->has_irreducible_entry()) {
+  		tty->print_cr("Method has irreducible entry!!");
+  	}
+  }
+#endif
+
   if (_flow->failing()) {
     assert(false, "type flow analysis failed during parsing");
     C->record_method_not_compilable(_flow->failure_reason());
