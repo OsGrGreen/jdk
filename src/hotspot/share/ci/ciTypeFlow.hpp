@@ -38,6 +38,8 @@ private:
   ciMethod* _method;
   int       _osr_bci;
 
+  int       _dot_prints;
+
   bool      _has_irreducible_entry;
 
   const char* _failure_reason;
@@ -61,6 +63,8 @@ public:
   int       max_stack() const  { return method()->max_stack(); }
   int       max_cells() const  { return max_locals() + max_stack(); }
   int       code_size() const  { return method()->code_size(); }
+  int       get_dot() {return _dot_prints; };
+  void      set_dot(int i) {_dot_prints = i;};
   bool      has_irreducible_entry() const { return _has_irreducible_entry; }
 
   // Represents information about an "active" jsr call.  This
@@ -494,6 +498,7 @@ public:
   enum CreateOption {
     create_public_copy,
     create_backedge_copy,
+    create_deep_copy,
     no_create
   };
 
@@ -605,7 +610,12 @@ public:
     LocalSet* def_locals() { return _state->def_locals(); }
     const LocalSet* def_locals() const { return _state->def_locals(); }
 
+    void clone(Block* blk);
+
     // Get the successors for this Block.
+    
+    GrowableArray<Block*>* successors(GrowableArray<Block*>* target);
+
     GrowableArray<Block*>* successors(ciBytecodeStream* str,
                                       StateVector* state,
                                       JsrSet* jsrs);
@@ -613,6 +623,8 @@ public:
       assert(_successors != nullptr, "must be filled in");
       return _successors;
     }
+    
+    bool has_successors() const {return _successors != nullptr;}
 
     // Predecessors of this block (including exception edges)
     GrowableArray<Block*>* predecessors() {
@@ -664,6 +676,10 @@ public:
       return state()->meet_exception(exc, incoming);
     }
 
+    Block* dot_next() const       { if (has_rpo())  return _rpo_next;
+	    			    return _next;
+				  }
+
     // Work list manipulation
     void   set_next(Block* block) { _next = block; }
     Block* next() const           { return _next; }
@@ -713,6 +729,7 @@ public:
 
     void   print_value_on(outputStream* st) const PRODUCT_RETURN;
     void   print_on(outputStream* st) const       PRODUCT_RETURN;
+    int    dot_id() const PRODUCT_RETURN;
   };
 
   // Loop
@@ -917,14 +934,20 @@ private:
   // necessary.
   void flow_types();
 
+  // Clone a block in a loop which causes irreducibility
+  void clone_irreducible_block(Block* irr);
+
+  void reset_blocks(Block* start);
+
   // Perform the depth first type flow analysis. Helper for flow_types.
-  void df_flow_types(Block* start,
+  Block* df_flow_types(Block* start,
                      bool do_flow,
                      StateVector* temp_vector,
-                     JsrSet* temp_set);
+                     JsrSet* temp_set,
+		     bool handleIrr);
 
   // Incrementally build loop tree.
-  void build_loop_tree(Block* blk);
+  Block* build_loop_tree(Block* blk);
 
   // Create the block map, which indexes blocks in pre_order.
   void map_blocks();
