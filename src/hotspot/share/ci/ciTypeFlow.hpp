@@ -939,6 +939,8 @@ private:
 
   void reset_blocks(Block* start);
 
+  void print_blocks(outputStream* st = tty);
+
   // Perform the depth first type flow analysis. Helper for flow_types.
   Block* df_flow_types(Block* start,
                      bool do_flow,
