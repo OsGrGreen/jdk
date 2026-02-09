@@ -1140,6 +1140,7 @@ void Parse::do_jsr() {
   push(_gvn.makecon(ret_addr));
 
   // Flow to the jsr.
+  tty->print_cr("Merging %d from do_jsr()", jsr_bci);
   merge(jsr_bci);
 }
 
@@ -1420,8 +1421,9 @@ void Parse::do_ifnull(BoolTest::mask btest, Node *c) {
       }
     } else {                    // Path is live.
       adjust_map_after_if(btest, c, prob, branch_block);
-      if (!stopped()) {
-        merge(target_bci);
+      if (!stopped()) 
+      {
+	merge(target_bci);
       }
     }
   }
@@ -1471,7 +1473,6 @@ void Parse::do_if(BoolTest::mask btest, Node* c) {
     }
     return;
   }
-
   Node* counter = nullptr;
   Node* incr_store = nullptr;
   bool do_stress_trap = StressUnstableIfTraps && ((C->random() % 2) == 0);
@@ -1530,12 +1531,10 @@ void Parse::do_if(BoolTest::mask btest, Node* c) {
     taken_branch   = untaken_branch;
     untaken_branch = tmp;
   }
-
   // Branch is taken:
   { PreserveJVMState pjvms(this);
     taken_branch = _gvn.transform(taken_branch);
     set_control(taken_branch);
-
     if (stopped()) {
       if (C->eliminate_boxing()) {
         // Mark the successor block as parsed
@@ -1964,7 +1963,6 @@ void Parse::do_one_bytecode() {
     tty->cr();
   }
 #endif
-
   switch (bc()) {
   case Bytecodes::_nop:
     // do nothing
@@ -2740,6 +2738,7 @@ void Parse::do_one_bytecode() {
   case Bytecodes::_if_acmpne: btest = BoolTest::ne; goto handle_if_acmp;
   handle_if_acmp:
     // If this is a backwards branch in the bytecodes, add Safepoint
+    //
     maybe_add_safepoint(iter().get_dest());
     a = pop();
     b = pop();

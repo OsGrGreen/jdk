@@ -543,6 +543,8 @@ public:
     // Has this block been cloned for a loop backedge?
     bool                             _backedge_copy;
 
+    // Has this block been cloned to fix irreducibility?
+    bool			     _irreducible_copy;
     // This block is a loop head of an irreducible loop.
     bool                             _irreducible_loop_head;
 
@@ -585,10 +587,15 @@ public:
     int limit() const         { return _ciblock->limit_bci(); }
     int control() const       { return _ciblock->control_bci(); }
     JsrSet* jsrs() const      { return _jsrs; }
+    
+    void setjsrs(JsrSet* jsr) {_jsrs = jsr;} 
 
     bool    is_backedge_copy() const       { return _backedge_copy; }
     void   set_backedge_copy(bool z);
     int        backedge_copy_count() const { return outer()->backedge_copy_count(ciblock()->index(), _jsrs); }
+
+    bool    is_irreducible_copy() const    { return _irreducible_copy; }
+    void   set_irreducible_copy(bool z)    { _irreducible_copy = z;    }
 
     // access to entry state
     int     stack_size() const         { return _state->stack_size(); }
@@ -857,6 +864,8 @@ public:
   // Note a failure.
   void record_failure(const char* reason);
 
+  void print_blocks(outputStream* st = tty);
+
   // Return the block of a given pre-order number.
   int have_block_count() const      { return _block_map != nullptr; }
   int block_count() const           { assert(have_block_count(), "");
@@ -939,8 +948,6 @@ private:
 
   void reset_blocks(Block* start);
 
-  void print_blocks(outputStream* st = tty);
-
   // Perform the depth first type flow analysis. Helper for flow_types.
   Block* df_flow_types(Block* start,
                      bool do_flow,
@@ -954,12 +961,12 @@ private:
   // Create the block map, which indexes blocks in pre_order.
   void map_blocks();
 
-  // Dump control-flow graph in Graphviz's DOT format.
-  void dump_dot_graph();
-
-public:
+  public:
   // Perform type inference flow analysis.
   void do_flow();
+  
+  // Dump control-flow graph in Graphviz's DOT format.
+  void dump_dot_graph();
 
   // Determine if bci is dominated by dom_bci
   bool is_dominated_by(int bci, int dom_bci);

@@ -511,11 +511,15 @@ Parse::Parse(JVMState* caller, ciMethod* parse_method, float expected_uses)
     _tf = C->tf();     // the OSR entry type is different
     _entry_bci = C->entry_bci();
     _flow = method()->get_osr_flow_analysis(osr_bci());
+    if (CIIrrFix) tty->print_cr("Is done with flow analysis");
   } else {
     _tf = TypeFunc::make(method());
     _entry_bci = InvocationEntryBci;
     _flow = method()->get_flow_analysis();
+    if (CIIrrFix) tty->print_cr("Is done with flow analysis");  
   }
+  if (CIIrrDebug) _flow->dump_dot_graph();
+  //_flow->print_blocks(tty);
 
 #ifndef PRODUCT
   if (CIIrrDebug) {
@@ -651,6 +655,8 @@ Parse::Parse(JVMState* caller, ciMethod* parse_method, float expected_uses)
 
   if (log)  log->done("parse nodes='%d' live='%d' memory='%zu'",
                       C->unique(), C->live_nodes(), C->node_arena()->used());
+
+  if (CIIrrFix) tty->print_cr("Done with parsing"); 
 }
 
 //---------------------------do_all_blocks-------------------------------------
@@ -663,10 +669,12 @@ void Parse::do_all_blocks() {
     for (int rpo = 0; rpo < block_count(); rpo++) {
       Block* block = rpo_at(rpo);
 
-      if (block->is_parsed()) continue;
-
+      if (block->is_parsed()) {
+	 continue;
+      }
+ 
       if (!block->is_merged()) {
-        // Dead block, no state reaches this block
+	// Dead block, no state reaches this block
         continue;
       }
 
@@ -674,7 +682,7 @@ void Parse::do_all_blocks() {
       load_state_from(block);
 
       if (stopped()) {
-        // Block is dead.
+	// Block is dead.
         continue;
       }
 
@@ -732,7 +740,11 @@ void Parse::do_all_blocks() {
       do_one_block();
 
       // Check for bailouts.
-      if (failing())  return;
+      if (failing())  {
+	tty->print_cr("Is failing -- returning");      
+	return;
+      }
+
     }
 
     // with irreducible loops multiple passes might be necessary to parse everything
@@ -1692,7 +1704,7 @@ void Parse::merge_common(Parse::Block* target, int pnum) {
   if (TraceOptoParse) {
     tty->print("Merging state at block #%d bci:%d", target->rpo(), target->start());
   }
-
+  if (CIIrrDebug) _flow->print_blocks(tty);
   // Zap extra stack slots to top
   assert(sp() == target->start_sp(), "");
   clean_stack(sp());
@@ -1841,11 +1853,11 @@ void Parse::merge_common(Parse::Block* target, int pnum) {
       // It is a bug if we create a phi which sees a garbage value on a live path.
 
       if (phi != nullptr) {
-        assert(n != top() || r->in(pnum) == top(), "live value must not be garbage");
+	assert(n != top() || r->in(pnum) == top(), "live value must not be garbage");
         assert(phi->region() == r, "");
         phi->set_req(pnum, n);  // Then add 'n' to the merge
         if (pnum == PhiNode::Input) {
-          // Last merge for this Phi.
+	  // Last merge for this Phi.
           // So far, Phis have had a reasonable type from ciTypeFlow.
           // Now _gvn will join that with the meet of current inputs.
           // BOTTOM is never permissible here, 'cause pessimistically
@@ -1858,6 +1870,7 @@ void Parse::merge_common(Parse::Block* target, int pnum) {
           record_for_igvn(phi);
         }
       }
+        
     } // End of for all values to be merged
 
     if (pnum == PhiNode::Input &&
@@ -1865,7 +1878,7 @@ void Parse::merge_common(Parse::Block* target, int pnum) {
       assert(control() == r, "");
       set_control(r->nonnull_req());
     }
-
+   
     map()->merge_replaced_nodes_with(newin);
 
     // newin has been subsumed into the lazy merge, and is now dead.

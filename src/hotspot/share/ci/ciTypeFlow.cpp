@@ -1637,6 +1637,7 @@ void ciTypeFlow::Block::df_init() {
 void ciTypeFlow::Block::clone(Block* blk) {
   blk->copy_state_into(_state);
   successors(blk->successors());
+  ciblock()->set_control_bci(blk->control());
 }
 
 GrowableArray<ciTypeFlow::Block*>* ciTypeFlow::Block::successors(GrowableArray<Block*>* target) {
@@ -2691,6 +2692,7 @@ void ciTypeFlow::print_blocks(outputStream* st) {
   for (int i = 0; i < _method->get_method_blocks()->num_blocks(); ++i){
     GrowableArray<Block*>* blocks = _idx_to_blocklist[i];
     if (blocks == nullptr) continue;
+    tty->print_cr("");
     for (int j = 0; j < blocks->length(); ++j){
       Block* blk = blocks->at(j);
       st->print_cr("Block %d", blk->dot_id());
@@ -2703,6 +2705,8 @@ void ciTypeFlow::print_blocks(outputStream* st) {
         st->print("\t%d, ", blk->predecessors()->at(k)->dot_id());
       }
       st->print_cr("");
+      blk->jsrs()->print_on(st);
+      st->print_cr("\nControl: %d, Start: %d, Limit: %d", blk->control(), blk->start(), blk->limit());
     } 
   }
 
@@ -2716,6 +2720,8 @@ void ciTypeFlow::reset_blocks(Block* start) {
     for (int j = 0; j < blocks->length(); ++j){
       Block* blk = blocks->at(j);
       blk->df_init();
+      blk->set_next(nullptr);
+      blk->set_rpo_next(nullptr);
     } 
   }
 }
@@ -2736,6 +2742,7 @@ void ciTypeFlow::reset_blocks(Block* start) {
 	      pred->successors()->remove(blk);
 	    pred->successors()->push(clone);
 	    clone->clone(blk);
+	    clone->set_irreducible_copy(true);
 	    clone->predecessors()->clear();
 	    clone->predecessors()->push(pred);
 	    //tty->print_cr("\tAfter: %d",pred->successors()->length());
@@ -2750,6 +2757,7 @@ void ciTypeFlow::reset_blocks(Block* start) {
 	  //if (!blk->has_post_order()) blk->set_post_order(max_jint); //Temp rework this later...
 	  //add_to_work_list(blk);
 	  blk->successors()->clear();
+          blk->predecessors()->clear();
 	  //assert(blk->predecessors()->length() != 1, "Early return");
 	}
 
@@ -3022,6 +3030,7 @@ void ciTypeFlow::reset_blocks(Block* start) {
 	    }
 	    i = i + 1;
 	  }
+	  if (i != 0) return; // Early return ... The final steps break the graph for some reason
 	  if (failing())  return;
 	  assert(_rpo_list == start, "must be start");
 
@@ -3070,6 +3079,7 @@ void ciTypeFlow::reset_blocks(Block* start) {
 	//
 	// Create the block map, which indexes blocks in reverse post-order.
 	void ciTypeFlow::map_blocks() {
+	  dump_dot_graph();
 	  assert(_block_map == nullptr, "single initialization");
 	  int block_ct = _next_pre_order;
 	  _block_map = NEW_ARENA_ARRAY(arena(), Block*, block_ct);
@@ -3083,8 +3093,7 @@ void ciTypeFlow::reset_blocks(Block* start) {
 	    blk = blk->rpo_next();
 	  }
 	  assert(blk == nullptr, "should be done");
-
-	  for (int j = 0; j < block_ct; j++) {
+          for (int j = 0; j < block_ct; j++) {
 	    assert(_block_map[j] != nullptr, "must not drop any blocks");
 	    Block* block = _block_map[j];
 	    // Remove dead blocks from successor lists:
@@ -3197,6 +3206,9 @@ void ciTypeFlow::reset_blocks(Block* start) {
 #ifndef PRODUCT
 	  if (CIPrintTypeFlowCFGs) {
 	    dump_dot_graph();
+	  }
+	  if (CIIrrDebug) {
+	    print_blocks(tty);
 	  }
 #endif // !PRODUCT
 	}
@@ -3373,7 +3385,7 @@ void ciTypeFlow::reset_blocks(Block* start) {
 	      }
 	      //fs->print("<br/>");
 	      fs->print("<br align=\"left\"/>");
-	      if (!CIIrrFix && !CIIrrDebug) {   
+	      if (!CIIrrFix || CIIrrDebug) {   
 		stringStream bytecode;
 		Thread *thread = Thread::current();
 		ResourceMark rm(thread);
@@ -3400,7 +3412,11 @@ void ciTypeFlow::reset_blocks(Block* start) {
       if (blk->has_successors()) {
         for (int i = 0; i < blk->successors()->length(); i++) {
           Block* succ = blk->successors()->at(i);
-          fs->print_cr("%d -> %d", blk->dot_id(), succ->dot_id());
+	  if (blk->has_rpo()) {
+	    fs->print_cr("%d -> %d", blk->rpo(), succ->rpo()); 
+	  } else {
+	    fs->print_cr("%d -> %d", blk->dot_id(), succ->dot_id());
+	  }
         }
       }   
     }

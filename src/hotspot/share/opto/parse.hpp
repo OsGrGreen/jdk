@@ -249,7 +249,7 @@ class Parse : public GraphKit {
       if (!jvms->is_loc(i) || flow()->outer()->has_irreducible_entry()) return false;
       return flow()->is_invariant_local(i - jvms->locoff());
     }
-    bool can_elide_SEL_phi(uint i) const  { assert(is_SEL_head(),""); return is_invariant_local(i); }
+    bool can_elide_SEL_phi(uint i) const  { assert(is_SEL_head(),""); return is_invariant_local(i) && !flow()->is_irreducible_copy(); }
 
     const Type* peek(int off=0) const      { return stack_type_at(start_sp() - (off+1)); }
 

@@ -675,7 +675,6 @@ Node* PhaseGVN::apply_ideal(Node* k, bool can_reshape) {
 // in a faster or cheaper fashion.
 Node* PhaseGVN::transform(Node* n) {
   NOT_PRODUCT( set_transforms(); )
-
   // Apply the Ideal call in a loop until it no longer applies
   Node* k = n;
   Node* i = apply_ideal(k, /*can_reshape=*/false);
@@ -735,7 +734,6 @@ Node* PhaseGVN::transform(Node* n) {
     return i;
   }
 
-  // Return Idealized original
   return k;
 }
 
