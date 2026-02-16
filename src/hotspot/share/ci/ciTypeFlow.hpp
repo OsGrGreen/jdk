@@ -733,6 +733,7 @@ public:
         if (lp->is_irreducible()) return false;
       return true;
     }
+    void   reset_irreducible()           {_irreducible_loop_head = false; _irreducible_loop_secondary_entry = false; }
 
     void   print_value_on(outputStream* st) const PRODUCT_RETURN;
     void   print_on(outputStream* st) const       PRODUCT_RETURN;
@@ -747,6 +748,7 @@ public:
     Loop* _child;    // Head of child list threaded thru sibling pointer
     Block* _head;    // Head of loop
     Block* _tail;    // Tail of loop
+    Block* _second_entry; // Second entry of the loop, if irreducible
     bool   _irreducible;
     LocalSet _def_locals;
     int _profiled_count;
@@ -757,19 +759,21 @@ public:
   public:
     Loop(Block* head, Block* tail) :
       _parent(nullptr), _sibling(nullptr), _child(nullptr),
-      _head(head),   _tail(tail),
+      _head(head),   _tail(tail), _second_entry(nullptr),
       _irreducible(false), _def_locals(), _profiled_count(-1) {}
 
     Loop* parent()  const { return _parent; }
     Loop* sibling() const { return _sibling; }
     Loop* child()   const { return _child; }
     Block* head()   const { return _head; }
+    Block* second_entry() const { return _second_entry; }
     Block* tail()   const { return _tail; }
     void set_parent(Loop* p)  { _parent = p; }
     void set_sibling(Loop* s) { _sibling = s; }
     void set_child(Loop* c)   { _child = c; }
     void set_head(Block* hd)  { _head = hd; }
     void set_tail(Block* tl)  { _tail = tl; }
+    void set_second_entry(Block* se) {_second_entry = se; }
 
     int depth() const;              // nesting depth
 
@@ -788,8 +792,12 @@ public:
     // Mark non-single entry to loop
     void set_irreducible(Block* entry) {
       _irreducible = true;
+      set_second_entry(entry);
       head()->set_irreducible_loop_head();
       entry->set_irreducible_loop_secondary_entry();
+    }
+    void reset_irreducible() {
+      _irreducible = false;
     }
     bool is_irreducible() const { return _irreducible; }
 
@@ -945,6 +953,12 @@ private:
 
   // Clone a block in a loop which causes irreducibility
   void clone_irreducible_block(Block* irr);
+
+
+  Block* add_dispatch(Loop* irreducible_region);
+  Block* create_dispatch_block(JsrSet* jsrs, Loop* lp);
+  void switch_blocks(Block* target, Block* source);
+  void connect_dispatch_loop(Block* dispatch, Loop* irreducible_region);
 
   void reset_blocks(Block* start);
 

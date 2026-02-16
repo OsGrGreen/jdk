@@ -1450,10 +1450,15 @@ void Parse::do_ifnull(BoolTest::mask btest, Node *c) {
 //------------------------------------do_if------------------------------------
 void Parse::do_if(BoolTest::mask btest, Node* c) {
   int target_bci = iter().get_dest();
-
+  tty->print_cr("Doing if");
+  c->dump();
+  tty->print_cr("target is: %d", target_bci);
   Block* branch_block = successor_for_bci(target_bci);
   Block* next_block   = successor_for_bci(iter().next_bci());
-
+  if (branch_block == nullptr && CIDispatch){
+    //Target is the dispatcher
+    branch_block = get_dispatch();
+  }
   float cnt;
   float prob = branch_prediction(cnt, btest, target_bci, c);
   float untaken_prob = 1.0 - prob;
@@ -1621,12 +1626,18 @@ bool Parse::path_is_suitable_for_uncommon_trap(float prob) const {
 }
 
 void Parse::maybe_add_predicate_after_if(Block* path) {
+  tty->print_cr("Starting...");
+  tty->print_cr("RPO: %d, succ: %d, ready: %d", path->rpo(), path->num_successors(), path->is_ready());
   if (path->is_SEL_head() && path->preds_parsed() == 0) {
+    tty->print_cr("Doing stuff");
     // Add predicates at bci of if dominating the loop so traps can be
     // recorded on the if's profile data
     int bc_depth = repush_if_args();
+    tty->print_cr("Repushed");
     add_parse_predicates();
+    tty->print_cr("parsed predicates");
     dec_sp(bc_depth);
+    tty->print_cr("dec_sp");
     path->set_has_predicates();
   }
 }

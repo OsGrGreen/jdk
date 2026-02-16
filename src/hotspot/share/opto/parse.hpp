@@ -212,6 +212,7 @@ class Parse : public GraphKit {
       return _successors[i];
     }
     Block* successor_for_bci(int bci);
+    Block* get_dispatch();
 
     int start() const                      { return flow()->start(); }
     int limit() const                      { return flow()->limit(); }
@@ -435,6 +436,10 @@ class Parse : public GraphKit {
   // Can return null if the flow pass did not complete a block.
   Block* successor_for_bci(int bci) {
     return block()->successor_for_bci(bci);
+  }
+
+  Block* get_dispatch() {
+    return block()->get_dispatch();
   }
 
  private:

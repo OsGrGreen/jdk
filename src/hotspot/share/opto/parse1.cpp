@@ -1375,6 +1375,9 @@ Parse::Block* Parse::Block::successor_for_bci(int bci) {
     Block* block2 = successor_at(i);
     if (block2->start() == bci)  return block2;
   }
+  if (CIDispatch){
+    return get_dispatch();
+  }
   // We can actually reach here if ciTypeFlow traps out a block
   // due to an unloaded class, and concurrently with compilation the
   // class is then loaded, so that a later phase of the parser is
@@ -1387,6 +1390,22 @@ Parse::Block* Parse::Block::successor_for_bci(int bci) {
 }
 
 
+//---------------------------get_dispatch---------------------------------
+Parse::Block* Parse::Block::get_dispatch() {
+  for (int i = 0; i < all_successors(); i++) {
+    Block* block2 = successor_at(i);
+    if (block2->start() == 0 && block2->limit() == -1)  return block2;
+  }
+  // We can actually reach here if ciTypeFlow traps out a block
+  // due to an unloaded class, and concurrently with compilation the
+  // class is then loaded, so that a later phase of the parser is
+  // able to see more of the bytecode CFG.  Or, the flow pass and
+  // the parser can have a minor difference of opinion about executability
+  // of bytecodes.  For example, "obj.field = null" is executable even
+  // if the field's type is an unloaded class; the flow pass used to
+  // make a trap for such code.
+  return nullptr;
+}
 //-----------------------------stack_type_at-----------------------------------
 const Type* Parse::Block::stack_type_at(int i) const {
   return get_type(flow()->stack_type_at(i));
@@ -1576,12 +1595,26 @@ void Parse::do_one_block() {
 
     // Learn the current bci from the iterator:
     set_parse_bci(iter().cur_bci());
+    
+    if (bci() == 0 && block()->limit() == -1 && CIDispatch){
+      //Add dispatcher switch
+       // Add phi for predecessors, to determine successor
+       // (how the hell do I determine successor (?)
+       // I must save the original CFG or bytecode in some way
+       //
+       //
+       // We know where the original jump was supposed to go from the `target_bci`
+       // If we can propogate this value and add a phi node in its place then maybe everything works out...
+
+      break;
+    }
 
     if (bci() == block()->limit()) {
       // Do not walk into the next block until directed by do_all_blocks.
       merge(bci());
       break;
     }
+    tty->print_cr("\t BCI: %d   limit: %d", bci(), block()->limit());
     assert(bci() < block()->limit(), "bci still in block");
 
     if (log != nullptr) {
