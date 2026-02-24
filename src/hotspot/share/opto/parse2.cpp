@@ -407,6 +407,115 @@ static void merge_ranges(SwitchRange* ranges, int& rp) {
   }
 }
 
+void Parse::do_dispatchswitch() {
+  
+  // Add phi-node
+  Node* jumpTarget  = new PhiNode(control(), TypeInt::INT);
+  tty->print_cr("Creating dispatch phi \n Dump: ");
+  
+  int len           = block()->flow()->predecessors()->length();
+  int greatest      = 0;
+  int smallest      = 100; // Make this higher 
+  for (int i = 0; i < len; ++i){
+    int targetBCI = block()->flow()->dispatch()->at(i)->start();
+    tty->print_cr("\t Source: %d, target BCI: %d", i, targetBCI);
+    Node* v = new ConINode(TypeInt::make(targetBCI));
+    jumpTarget->add_req(v);
+    if (targetBCI > greatest) {
+	    greatest = targetBCI;
+    }
+    if (targetBCI < smallest) {
+      smallest = targetBCI;
+    }
+  }
+  RegionNode *r = control()->as_Region();
+  /*int pnum = block()->next_path_num();
+  int edges = block()->pred_count();
+  if (edges < pnum)  edges = pnum;  // might be a new path!
+  tty->print_cr("Num edges are: %d", edges);
+  RegionNode *r = new RegionNode(edges+1);
+  gvn().set_type(r, Type::CONTROL);
+  record_for_igvn(r);
+      // zap all inputs to null for debugging (done in Node(uint) constructor)
+      // for (int j = 1; j < edges+1; j++) { r->init_req(j, nullptr); }
+  r->init_req(pnum, control());
+  set_control(r);*/
+  _gvn.set_type(jumpTarget, TypeInt::INT);  
+  //Informaiton for the tableswitch
+  int default_dest = greatest; // First successor...
+ 
+  if (len < 1) {
+    maybe_add_safepoint(default_dest);
+    // No effect on the operand stack... (possibly a pop-depending how the phinode works)...
+    merge(default_dest);
+    return;
+  }
+
+  int unique = 0;
+  intptr_t *targets = NEW_RESOURCE_ARRAY(intptr_t, len);
+  for (int i = 0; i < len; ++i) {
+     bool should_add = true;
+     int candidate = block()->flow()->dispatch()->at(i)->start();
+     for (int j = 0; j < i; ++j) {
+       int tmp = block()->flow()->dispatch()->at(j)->start();
+       if (candidate == tmp){
+	 should_add = false;
+       }
+     }
+     if (should_add)
+     {
+       tty->print_cr("Adding BCI %d to index: %d", candidate, unique);
+       targets[unique] = candidate;
+       unique++;
+     }
+  }
+  
+  //Since this code is never ran by the interpreter I do not think that any data will ever exist
+  /*ciMethodData* methodData = method()->method_data();
+  ciMultiBranchData* profile = nullptr;
+ 
+  if (methodData->is_mature() && UseSwitchProfiling) {
+    ciProfileData* data = methodData->bci_to_data(bci()); // Everything gets pretty complicated when everything has BCI 0... maybe I should add some other 
+    if (data != nullptr && data->is_MultiBranchData()) {
+      profile = (ciMultiBranchData*) data;
+    }
+  }*/
+  int rnum = unique + 2;
+  int lo_index = 0;
+  SwitchRange* ranges = NEW_RESOURCE_ARRAY(SwitchRange, rnum);
+
+  int rp = -1;
+  float cnt = 1.0;
+  ranges[++rp].setRange(min_jint, lo_index-1, default_dest, cnt);
+
+  bool trim_ranges = !C->too_many_traps(method(), bci(), Deoptimization::Reason_unstable_if);
+
+  for (int i = 0; i < unique; i++){
+    jint match_int = lo_index + i;
+    int dest = targets[i];
+    if (rp < 0 || !ranges[rp].adjoin(match_int, dest, cnt, trim_ranges)) {
+      ranges[++rp].set(match_int, dest, cnt);
+    }
+  }
+  jint highest = lo_index + (unique - 1);
+  if (highest != max_jint && !ranges[rp].adjoinRange(unique, max_jint, default_dest, cnt, trim_ranges)) {
+    ranges[++rp].setRange(unique, max_jint, default_dest, cnt);
+  }
+  tty->print_cr("RP is: %d, is lower than: %d", rp, len + 2);
+  tty->print_cr("Lo: %d, Hi: %d", 0, unique);
+  tty->print_cr("Trim edges?: %d", trim_ranges);
+  //add_safepoint();
+  { PreserveJVMState pjvms(this);  
+	 
+    jump_switch_ranges(jumpTarget, &ranges[0], &ranges[rp]);
+  }
+
+  //tty->print_cr("Control is now: ");
+  //control()->dump(); 
+  
+  set_control(r);
+}
+
 //-------------------------------do_tableswitch--------------------------------
 void Parse::do_tableswitch() {
   // Get information about tableswitch
@@ -414,7 +523,7 @@ void Parse::do_tableswitch() {
   jint lo_index    = iter().get_int_table(1);
   jint hi_index    = iter().get_int_table(2);
   int len          = hi_index - lo_index + 1;
-
+  tty->print_cr("default: %d, lo: %d, hi: %d, len: %d", default_dest, lo_index, hi_index, len);
   if (len < 1) {
     // If this is a backward branch, add safepoint
     maybe_add_safepoint(default_dest);
@@ -908,6 +1017,7 @@ bool Parse::create_jump_tables(Node* key_val, SwitchRange* lo, SwitchRange* hi) 
 //----------------------------jump_switch_ranges-------------------------------
 void Parse::jump_switch_ranges(Node* key_val, SwitchRange *lo, SwitchRange *hi, int switch_depth) {
   Block* switch_block = block();
+  tty->print_cr("Switch block is: %d, with depth %d", switch_block->rpo(), switch_depth);
   bool trim_ranges = !C->too_many_traps(method(), bci(), Deoptimization::Reason_unstable_if);
 
   if (switch_depth == 0) {
@@ -1455,10 +1565,7 @@ void Parse::do_if(BoolTest::mask btest, Node* c) {
   tty->print_cr("target is: %d", target_bci);
   Block* branch_block = successor_for_bci(target_bci);
   Block* next_block   = successor_for_bci(iter().next_bci());
-  if (branch_block == nullptr && CIDispatch){
-    //Target is the dispatcher
-    branch_block = get_dispatch();
-  }
+
   float cnt;
   float prob = branch_prediction(cnt, btest, target_bci, c);
   float untaken_prob = 1.0 - prob;
@@ -1974,6 +2081,14 @@ void Parse::do_one_bytecode() {
     tty->cr();
   }
 #endif
+  if (block()->flow()->is_dispatch() && CIDispatch){
+    bc(); // Needed for IGV 
+      //Add dispatcher switch
+       // Add phi for predecessors, to determine successor
+       // How do I determine the order of successors (should be RPO)
+    do_dispatchswitch();
+    return;
+  }
   switch (bc()) {
   case Bytecodes::_nop:
     // do nothing
@@ -2707,12 +2822,16 @@ void Parse::do_one_bytecode() {
 
     // Merge the current control into the target basic block
     merge(target_bci);
-
+    tty->print_cr("Merged with %d", target_bci);
     // See if we can get some profile data and hand it off to the next block
-    Block *target_block = block()->successor_for_bci(target_bci);
+    Block *target_block = successor_for_bci(target_bci);
+    tty->print_cr("Target block is: %d", target_block->rpo());
     if (target_block->pred_count() != 1)  break;
+    tty->print_cr("Did not break");
     ciMethodData* methodData = method()->method_data();
+    tty->print_cr("Found data");
     if (!methodData->is_mature())  break;
+    tty->print_cr("Found data and not break");
     ciProfileData* data = methodData->bci_to_data(bci());
     assert(data != nullptr && data->is_JumpData(), "need JumpData for taken branch");
     int taken = ((ciJumpData*)data)->taken();

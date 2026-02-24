@@ -78,17 +78,17 @@ void Parse::print_statistics() {
 
   if (explicit_null_checks_inserted) {
     tty->print_cr("%u original null checks - %u elided (%2u%%); optimizer leaves %u,",
-                  explicit_null_checks_inserted, explicit_null_checks_elided,
-                  (100*explicit_null_checks_elided)/explicit_null_checks_inserted,
-                  all_null_checks_found);
+        explicit_null_checks_inserted, explicit_null_checks_elided,
+        (100*explicit_null_checks_elided)/explicit_null_checks_inserted,
+        all_null_checks_found);
   }
   if (all_null_checks_found) {
     tty->print_cr("%u made implicit (%2u%%)", implicit_null_checks,
-                  (100*implicit_null_checks)/all_null_checks_found);
+        (100*implicit_null_checks)/all_null_checks_found);
   }
   if (SharedRuntime::_implicit_null_throws) {
     tty->print_cr("%u implicit null exceptions at runtime",
-                  SharedRuntime::_implicit_null_throws);
+        SharedRuntime::_implicit_null_throws);
   }
 
   if (PrintParseStatistics && BytecodeParseHistogram::initialized()) {
@@ -102,9 +102,9 @@ void Parse::print_statistics() {
 // Construct a node which can be used to get incoming state for
 // on stack replacement.
 Node *Parse::fetch_interpreter_state(int index,
-                                     BasicType bt,
-                                     Node *local_addrs,
-                                     Node *local_addrs_base) {
+    BasicType bt,
+    Node *local_addrs,
+    Node *local_addrs_base) {
   Node *mem = memory(Compile::AliasIdxRaw);
   Node *adr = basic_plus_adr( local_addrs_base, local_addrs, -index*wordSize );
   Node *ctl = control();
@@ -113,27 +113,27 @@ Node *Parse::fetch_interpreter_state(int index,
   // doubles on Sparc.  Intel can handle them just fine directly.
   Node *l = nullptr;
   switch (bt) {                // Signature is flattened
-  case T_INT:     l = new LoadINode(ctl, mem, adr, TypeRawPtr::BOTTOM, TypeInt::INT,        MemNode::unordered); break;
-  case T_FLOAT:   l = new LoadFNode(ctl, mem, adr, TypeRawPtr::BOTTOM, Type::FLOAT,         MemNode::unordered); break;
-  case T_ADDRESS: l = new LoadPNode(ctl, mem, adr, TypeRawPtr::BOTTOM, TypeRawPtr::BOTTOM,  MemNode::unordered); break;
-  case T_OBJECT:  l = new LoadPNode(ctl, mem, adr, TypeRawPtr::BOTTOM, TypeInstPtr::BOTTOM, MemNode::unordered); break;
-  case T_LONG:
-  case T_DOUBLE: {
-    // Since arguments are in reverse order, the argument address 'adr'
-    // refers to the back half of the long/double.  Recompute adr.
-    adr = basic_plus_adr(local_addrs_base, local_addrs, -(index+1)*wordSize);
-    if (Matcher::misaligned_doubles_ok) {
-      l = (bt == T_DOUBLE)
-        ? (Node*)new LoadDNode(ctl, mem, adr, TypeRawPtr::BOTTOM, Type::DOUBLE, MemNode::unordered)
-        : (Node*)new LoadLNode(ctl, mem, adr, TypeRawPtr::BOTTOM, TypeLong::LONG, MemNode::unordered);
-    } else {
-      l = (bt == T_DOUBLE)
-        ? (Node*)new LoadD_unalignedNode(ctl, mem, adr, TypeRawPtr::BOTTOM, MemNode::unordered)
-        : (Node*)new LoadL_unalignedNode(ctl, mem, adr, TypeRawPtr::BOTTOM, MemNode::unordered);
-    }
-    break;
-  }
-  default: ShouldNotReachHere();
+    case T_INT:     l = new LoadINode(ctl, mem, adr, TypeRawPtr::BOTTOM, TypeInt::INT,        MemNode::unordered); break;
+    case T_FLOAT:   l = new LoadFNode(ctl, mem, adr, TypeRawPtr::BOTTOM, Type::FLOAT,         MemNode::unordered); break;
+    case T_ADDRESS: l = new LoadPNode(ctl, mem, adr, TypeRawPtr::BOTTOM, TypeRawPtr::BOTTOM,  MemNode::unordered); break;
+    case T_OBJECT:  l = new LoadPNode(ctl, mem, adr, TypeRawPtr::BOTTOM, TypeInstPtr::BOTTOM, MemNode::unordered); break;
+    case T_LONG:
+    case T_DOUBLE: {
+                     // Since arguments are in reverse order, the argument address 'adr'
+                     // refers to the back half of the long/double.  Recompute adr.
+                     adr = basic_plus_adr(local_addrs_base, local_addrs, -(index+1)*wordSize);
+                     if (Matcher::misaligned_doubles_ok) {
+                       l = (bt == T_DOUBLE)
+                         ? (Node*)new LoadDNode(ctl, mem, adr, TypeRawPtr::BOTTOM, Type::DOUBLE, MemNode::unordered)
+                         : (Node*)new LoadLNode(ctl, mem, adr, TypeRawPtr::BOTTOM, TypeLong::LONG, MemNode::unordered);
+                     } else {
+                       l = (bt == T_DOUBLE)
+                         ? (Node*)new LoadD_unalignedNode(ctl, mem, adr, TypeRawPtr::BOTTOM, MemNode::unordered)
+                         : (Node*)new LoadL_unalignedNode(ctl, mem, adr, TypeRawPtr::BOTTOM, MemNode::unordered);
+                     }
+                     break;
+                   }
+    default: ShouldNotReachHere();
   }
   return _gvn.transform(l);
 }
@@ -145,7 +145,7 @@ Node *Parse::fetch_interpreter_state(int index,
 // not a general type, but can only come from Type::get_typeflow_type.
 // The safepoint is a map which will feed an uncommon trap.
 Node* Parse::check_interpreter_type(Node* l, const Type* type,
-                                    SafePointNode* &bad_type_exit) {
+    SafePointNode* &bad_type_exit) {
 
   const TypeOopPtr* tp = type->isa_oopptr();
 
@@ -334,9 +334,9 @@ void Parse::load_interpreter_state(Node* osr_buf) {
 
   // End the OSR migration
   make_runtime_call(RC_LEAF, OptoRuntime::osr_end_Type(),
-                    CAST_FROM_FN_PTR(address, SharedRuntime::OSR_migration_end),
-                    "OSR_migration_end", TypeRawPtr::BOTTOM,
-                    osr_buf);
+      CAST_FROM_FN_PTR(address, SharedRuntime::OSR_migration_end),
+      "OSR_migration_end", TypeRawPtr::BOTTOM,
+      osr_buf);
 
   // Now that the interpreter state is loaded, make sure it will match
   // at execution time what the compiler is expecting now:
@@ -392,7 +392,7 @@ void Parse::load_interpreter_state(Node* osr_buf) {
     // This x will be typed as Integer if notReached is not yet linked.
     // It could also happen due to a problem in ciTypeFlow analysis.
     uncommon_trap(Deoptimization::Reason_constraint,
-                  Deoptimization::Action_reinterpret);
+        Deoptimization::Action_reinterpret);
     set_map(types_are_good);
   }
 }
@@ -457,7 +457,7 @@ Parse::Parse(JVMState* caller, ciMethod* parse_method, float expected_uses)
   CompileLog* log = C->log();
   if (log != nullptr) {
     log->begin_head("parse method='%d' uses='%f'",
-                    log->identify(parse_method), expected_uses);
+        log->identify(parse_method), expected_uses);
     if (depth() == 1 && C->is_osr_compilation()) {
       log->print(" osr_bci='%d'", C->entry_bci());
     }
@@ -483,8 +483,8 @@ Parse::Parse(JVMState* caller, ciMethod* parse_method, float expected_uses)
       C->set_trap_count(reason, total_count);
       if (log != nullptr)
         log->elem("observe trap='%s' count='%d' total='%d'",
-                  Deoptimization::trap_reason_name(reason),
-                  md_count, total_count);
+            Deoptimization::trap_reason_name(reason),
+            md_count, total_count);
     }
   }
   // Accumulate total sum of decompilations, also.
@@ -523,9 +523,9 @@ Parse::Parse(JVMState* caller, ciMethod* parse_method, float expected_uses)
 
 #ifndef PRODUCT
   if (CIIrrDebug) {
-  	if (_flow->has_irreducible_entry()) {
-  		tty->print_cr("Method has irreducible entry!!");
-  	}
+    if (_flow->has_irreducible_entry()) {
+      tty->print_cr("Method has irreducible entry!!");
+    }
   }
 #endif
 
@@ -533,18 +533,18 @@ Parse::Parse(JVMState* caller, ciMethod* parse_method, float expected_uses)
     assert(false, "type flow analysis failed during parsing");
     C->record_method_not_compilable(_flow->failure_reason());
 #ifndef PRODUCT
-      if (PrintOpto && (Verbose || WizardMode)) {
-        if (is_osr_parse()) {
-          tty->print_cr("OSR @%d type flow bailout: %s", _entry_bci, _flow->failure_reason());
-        } else {
-          tty->print_cr("type flow bailout: %s", _flow->failure_reason());
-        }
-        if (Verbose) {
-          method()->print();
-          method()->print_codes();
-          _flow->print();
-        }
+    if (PrintOpto && (Verbose || WizardMode)) {
+      if (is_osr_parse()) {
+        tty->print_cr("OSR @%d type flow bailout: %s", _entry_bci, _flow->failure_reason());
+      } else {
+        tty->print_cr("type flow bailout: %s", _flow->failure_reason());
       }
+      if (Verbose) {
+        method()->print();
+        method()->print_codes();
+        _flow->print();
+      }
+    }
 #endif
   }
 
@@ -654,7 +654,7 @@ Parse::Parse(JVMState* caller, ciMethod* parse_method, float expected_uses)
   C->set_default_node_notes(caller_nn);
 
   if (log)  log->done("parse nodes='%d' live='%d' memory='%zu'",
-                      C->unique(), C->live_nodes(), C->node_arena()->used());
+      C->unique(), C->live_nodes(), C->node_arena()->used());
 
   if (CIIrrFix) tty->print_cr("Done with parsing"); 
 }
@@ -670,11 +670,11 @@ void Parse::do_all_blocks() {
       Block* block = rpo_at(rpo);
 
       if (block->is_parsed()) {
-	 continue;
+        continue;
       }
- 
+
       if (!block->is_merged()) {
-	// Dead block, no state reaches this block
+        // Dead block, no state reaches this block
         continue;
       }
 
@@ -682,7 +682,7 @@ void Parse::do_all_blocks() {
       load_state_from(block);
 
       if (stopped()) {
-	// Block is dead.
+        // Block is dead.
         continue;
       }
 
@@ -741,8 +741,8 @@ void Parse::do_all_blocks() {
 
       // Check for bailouts.
       if (failing())  {
-	tty->print_cr("Is failing -- returning");      
-	return;
+        tty->print_cr("Is failing -- returning");      
+        return;
       }
 
     }
@@ -772,22 +772,22 @@ void Parse::do_all_blocks() {
 
 static Node* mask_int_value(Node* v, BasicType bt, PhaseGVN* gvn) {
   switch (bt) {
-  case T_BYTE:
-    v = gvn->transform(new LShiftINode(v, gvn->intcon(24)));
-    v = gvn->transform(new RShiftINode(v, gvn->intcon(24)));
-    break;
-  case T_SHORT:
-    v = gvn->transform(new LShiftINode(v, gvn->intcon(16)));
-    v = gvn->transform(new RShiftINode(v, gvn->intcon(16)));
-    break;
-  case T_CHAR:
-    v = gvn->transform(new AndINode(v, gvn->intcon(0xFFFF)));
-    break;
-  case T_BOOLEAN:
-    v = gvn->transform(new AndINode(v, gvn->intcon(0x1)));
-    break;
-  default:
-    break;
+    case T_BYTE:
+      v = gvn->transform(new LShiftINode(v, gvn->intcon(24)));
+      v = gvn->transform(new RShiftINode(v, gvn->intcon(24)));
+      break;
+    case T_SHORT:
+      v = gvn->transform(new LShiftINode(v, gvn->intcon(16)));
+      v = gvn->transform(new RShiftINode(v, gvn->intcon(16)));
+      break;
+    case T_CHAR:
+      v = gvn->transform(new AndINode(v, gvn->intcon(0xFFFF)));
+      break;
+    case T_BOOLEAN:
+      v = gvn->transform(new AndINode(v, gvn->intcon(0x1)));
+      break;
+    default:
+      break;
   }
   return v;
 }
@@ -897,11 +897,11 @@ Node_Notes* Parse::make_node_notes(Node_Notes* caller_nn) {
 void Compile::return_values(JVMState* jvms) {
   GraphKit kit(jvms);
   Node* ret = new ReturnNode(TypeFunc::Parms,
-                             kit.control(),
-                             kit.i_o(),
-                             kit.reset_memory(),
-                             kit.frameptr(),
-                             kit.returnadr());
+      kit.control(),
+      kit.i_o(),
+      kit.reset_memory(),
+      kit.frameptr(),
+      kit.returnadr());
   // Add zero or 1 return values
   int ret_size = tf()->range()->cnt() - TypeFunc::Parms;
   if (ret_size > 0) {
@@ -925,10 +925,10 @@ void Compile::rethrow_exceptions(JVMState* jvms) {
   SafePointNode* ex_map = kit.combine_and_pop_all_exception_states();
   Node* ex_oop = kit.use_exception_state(ex_map);
   RethrowNode* exit = new RethrowNode(kit.control(),
-                                      kit.i_o(), kit.reset_memory(),
-                                      kit.frameptr(), kit.returnadr(),
-                                      // like a return but with exception input
-                                      ex_oop);
+      kit.i_o(), kit.reset_memory(),
+      kit.frameptr(), kit.returnadr(),
+      // like a return but with exception input
+      ex_oop);
   // bind to root
   root()->add_req(exit);
   record_for_igvn(exit);
@@ -1000,10 +1000,10 @@ void Parse::do_exits() {
   // Now peephole on the return bits
   Node* region = _exits.control();
   _exits.set_control(gvn().transform(region));
-
+  region->dump();
   Node* iophi = _exits.i_o();
   _exits.set_i_o(gvn().transform(iophi));
-
+  iophi->dump();
   // Figure out if we need to emit the trailing barrier. The barrier is only
   // needed in the constructors, and only in three cases:
   //
@@ -1033,12 +1033,12 @@ void Parse::do_exits() {
   // exceptional returns, since they cannot publish normally.
   //
   if (method()->is_object_initializer() &&
-       (wrote_final() || wrote_stable() ||
-         (AlwaysSafeConstructors && wrote_fields()) ||
-         (support_IRIW_for_not_multiple_copy_atomic_cpu && wrote_volatile()))) {
+      (wrote_final() || wrote_stable() ||
+       (AlwaysSafeConstructors && wrote_fields()) ||
+       (support_IRIW_for_not_multiple_copy_atomic_cpu && wrote_volatile()))) {
     Node* recorded_alloc = alloc_with_final_or_stable();
     _exits.insert_mem_bar(UseStoreStoreForCtor ? Op_MemBarStoreStore : Op_MemBarRelease,
-                          recorded_alloc);
+        recorded_alloc);
 
     // If Memory barrier is created for final fields write
     // and allocation node does not escape the initialize method,
@@ -1059,7 +1059,7 @@ void Parse::do_exits() {
   }
   // Clean up input MergeMems created by transforming the slices
   _gvn.transform(_exits.merged_memory());
-
+  tty->print_cr("Random point");
   if (tf()->range()->cnt() > TypeFunc::Parms) {
     const Type* ret_type = tf()->range()->field_at(TypeFunc::Parms);
     Node*       ret_phi  = _gvn.transform( _exits.argument(0) );
@@ -1086,7 +1086,7 @@ void Parse::do_exits() {
   // (e.g., null checks) arising from multiple points within this method.
   // See GraphKit::add_exception_state, which performs the commoning.
   bool do_synch = method()->is_synchronized();
-
+  tty->print_cr("Doing logic for creating returnNode");
   // record exit from a method if compiled while Dtrace is turned on.
   if (do_synch || C->env()->dtrace_method_probes() || _replaced_nodes_for_exceptions) {
     // First move the exception list out of _exits:
@@ -1133,6 +1133,7 @@ void Parse::do_exits() {
       _exits.add_exception_state(ex_map);
     }
   }
+  tty->print_cr("Pretty much done!");
   _exits.map()->apply_replaced_nodes(_new_idx);
 }
 
@@ -1224,9 +1225,9 @@ void Parse::do_method_entry() {
 
   NOT_PRODUCT( count_compiled_calls(true/*at_method_entry*/, false/*is_inline*/); )
 
-  if (C->env()->dtrace_method_probes()) {
-    make_dtrace_method_entry(method());
-  }
+    if (C->env()->dtrace_method_probes()) {
+      make_dtrace_method_entry(method());
+    }
 
 #ifdef ASSERT
   // Narrow receiver type when it is too broad for the method being parsed.
@@ -1356,7 +1357,7 @@ void Parse::Block::init_graph(Parse* outer) {
       block2->_is_handler = true;
     }
 
-    #ifdef ASSERT
+#ifdef ASSERT
     // A block's successors must be distinguishable by BCI.
     // That is, no bytecode is allowed to branch to two different
     // clones of the same code location.
@@ -1365,7 +1366,7 @@ void Parse::Block::init_graph(Parse* outer) {
       if (block1 == block2)  continue;  // duplicates are OK
       assert(block1->start() != block2->start(), "successors have unique bcis");
     }
-    #endif
+#endif
   }
 }
 
@@ -1376,7 +1377,7 @@ Parse::Block* Parse::Block::successor_for_bci(int bci) {
     if (block2->start() == bci)  return block2;
   }
   if (CIDispatch){
-    return get_dispatch();
+    return get_dispatch(bci);
   }
   // We can actually reach here if ciTypeFlow traps out a block
   // due to an unloaded class, and concurrently with compilation the
@@ -1391,10 +1392,10 @@ Parse::Block* Parse::Block::successor_for_bci(int bci) {
 
 
 //---------------------------get_dispatch---------------------------------
-Parse::Block* Parse::Block::get_dispatch() {
+Parse::Block* Parse::Block::get_dispatch(int bci) {
   for (int i = 0; i < all_successors(); i++) {
     Block* block2 = successor_at(i);
-    if (block2->start() == 0 && block2->limit() == -1)  return block2;
+    if (block2->flow()->is_dispatch())  return block2;
   }
   // We can actually reach here if ciTypeFlow traps out a block
   // due to an unloaded class, and concurrently with compilation the
@@ -1446,9 +1447,9 @@ Parse::BytecodeParseHistogram::BytecodeParseHistogram(Parse *p, Compile *c) {
 //----------------------------current_count------------------------------------
 int Parse::BytecodeParseHistogram::current_count(BPHType bph_type) {
   switch( bph_type ) {
-  case BPH_transforms: { return _parser->gvn().made_progress(); }
-  case BPH_values:     { return _parser->gvn().made_new_values(); }
-  default: { ShouldNotReachHere(); return 0; }
+    case BPH_transforms: { return _parser->gvn().made_progress(); }
+    case BPH_values:     { return _parser->gvn().made_new_values(); }
+    default: { ShouldNotReachHere(); return 0; }
   }
 }
 
@@ -1552,7 +1553,7 @@ void Parse::do_one_block() {
     int nt = b->all_successors();
 
     tty->print("Parsing block #%d at bci [%d,%d), successors:",
-                  block()->rpo(), block()->start(), block()->limit());
+        block()->rpo(), block()->start(), block()->limit());
     for (int i = 0; i < nt; i++) {
       tty->print((( i < ns) ? " %d" : " %d(exception block)"), b->successor_at(i)->rpo());
     }
@@ -1580,8 +1581,8 @@ void Parse::do_one_block() {
         // Emit an uncommon trap instead of processing the block.
         set_parse_bci(block()->start());
         uncommon_trap(Deoptimization::Reason_unreached,
-                      Deoptimization::Action_reinterpret,
-                      nullptr, "dead catch block");
+            Deoptimization::Action_reinterpret,
+            nullptr, "dead catch block");
         return;
       }
     }
@@ -1595,16 +1596,16 @@ void Parse::do_one_block() {
 
     // Learn the current bci from the iterator:
     set_parse_bci(iter().cur_bci());
-    
+
     if (bci() == 0 && block()->limit() == -1 && CIDispatch){
       //Add dispatcher switch
-       // Add phi for predecessors, to determine successor
-       // (how the hell do I determine successor (?)
-       // I must save the original CFG or bytecode in some way
-       //
-       //
-       // We know where the original jump was supposed to go from the `target_bci`
-       // If we can propogate this value and add a phi node in its place then maybe everything works out...
+      // Add phi for predecessors, to determine successor
+      // (how the hell do I determine successor (?)
+      // I must save the original CFG or bytecode in some way
+      //
+      //
+      // We know where the original jump was supposed to go from the `target_bci`
+      // If we can propogate this value and add a phi node in its place then maybe everything works out...
 
       break;
     }
@@ -1615,7 +1616,7 @@ void Parse::do_one_block() {
       break;
     }
     tty->print_cr("\t BCI: %d   limit: %d", bci(), block()->limit());
-    assert(bci() < block()->limit(), "bci still in block");
+    if(!(block() != nullptr && block()->flow()->is_dispatch())) assert(bci() < block()->limit(), "bci still in block");
 
     if (log != nullptr) {
       // Output an optional context marker, to help place actions
@@ -1645,9 +1646,12 @@ void Parse::do_one_block() {
 
     do_one_bytecode();
     if (failing()) return;
+    if (block()->flow()->is_dispatch()){
+      break;
+    }
 
     assert(!have_se || stopped() || failing() || (sp() - pre_bc_sp) == depth,
-           "incorrect depth prediction: sp=%d, pre_bc_sp=%d, depth=%d", sp(), pre_bc_sp, depth);
+        "incorrect depth prediction: sp=%d, pre_bc_sp=%d, depth=%d", sp(), pre_bc_sp, depth);
 
     do_exceptions();
 
@@ -1764,11 +1768,11 @@ void Parse::merge_common(Parse::Block* target, int pnum) {
       set_parse_bci(target->start()); // Set target bci
       if (target->is_SEL_head()) {
         DEBUG_ONLY( target->mark_merged_backedge(block()); )
-        if (target->start() == 0) {
-          // Add Parse Predicates for the special case when
-          // there are backbranches to the method entry.
-          add_parse_predicates();
-        }
+          if (target->start() == 0) {
+            // Add Parse Predicates for the special case when
+            // there are backbranches to the method entry.
+            add_parse_predicates();
+          }
       }
       // Add a Region to start the new basic block.  Phis will be added
       // later lazily.
@@ -1841,43 +1845,43 @@ void Parse::merge_common(Parse::Block* target, int pnum) {
         phi = nullptr;
       if (m != n) {             // Different; must merge
         switch (j) {
-        // Frame pointer and Return Address never changes
-        case TypeFunc::FramePtr:// Drop m, use the original value
-        case TypeFunc::ReturnAdr:
-          break;
-        case TypeFunc::Memory:  // Merge inputs to the MergeMem node
-          assert(phi == nullptr, "the merge contains phis, not vice versa");
-          merge_memory_edges(n->as_MergeMem(), pnum, nophi);
-          continue;
-        default:                // All normal stuff
-          if (phi == nullptr) {
-            const JVMState* jvms = map()->jvms();
-            if (EliminateNestedLocks &&
-                jvms->is_mon(j) && jvms->is_monitor_box(j)) {
-              // BoxLock nodes are not commoning when EliminateNestedLocks is on.
-              // Use old BoxLock node as merged box.
-              assert(newin->jvms()->is_monitor_box(j), "sanity");
-              // This assert also tests that nodes are BoxLock.
-              assert(BoxLockNode::same_slot(n, m), "sanity");
-              BoxLockNode* old_box = m->as_BoxLock();
-              if (n->as_BoxLock()->is_unbalanced() && !old_box->is_unbalanced()) {
-                // Preserve Unbalanced status.
-                //
-                // `old_box` can have only Regular or Coarsened status
-                // because this code is executed only during Parse phase and
-                // Incremental Inlining before EA and Macro nodes elimination.
-                //
-                // Incremental Inlining is executed after IGVN optimizations
-                // during which BoxLock can be marked as Coarsened.
-                old_box->set_coarsened(); // Verifies state
-                old_box->set_unbalanced();
+          // Frame pointer and Return Address never changes
+          case TypeFunc::FramePtr:// Drop m, use the original value
+          case TypeFunc::ReturnAdr:
+            break;
+          case TypeFunc::Memory:  // Merge inputs to the MergeMem node
+            assert(phi == nullptr, "the merge contains phis, not vice versa");
+            merge_memory_edges(n->as_MergeMem(), pnum, nophi);
+            continue;
+          default:                // All normal stuff
+            if (phi == nullptr) {
+              const JVMState* jvms = map()->jvms();
+              if (EliminateNestedLocks &&
+                  jvms->is_mon(j) && jvms->is_monitor_box(j)) {
+                // BoxLock nodes are not commoning when EliminateNestedLocks is on.
+                // Use old BoxLock node as merged box.
+                assert(newin->jvms()->is_monitor_box(j), "sanity");
+                // This assert also tests that nodes are BoxLock.
+                assert(BoxLockNode::same_slot(n, m), "sanity");
+                BoxLockNode* old_box = m->as_BoxLock();
+                if (n->as_BoxLock()->is_unbalanced() && !old_box->is_unbalanced()) {
+                  // Preserve Unbalanced status.
+                  //
+                  // `old_box` can have only Regular or Coarsened status
+                  // because this code is executed only during Parse phase and
+                  // Incremental Inlining before EA and Macro nodes elimination.
+                  //
+                  // Incremental Inlining is executed after IGVN optimizations
+                  // during which BoxLock can be marked as Coarsened.
+                  old_box->set_coarsened(); // Verifies state
+                  old_box->set_unbalanced();
+                }
+                C->gvn_replace_by(n, m);
+              } else if (!check_elide_phi || !target->can_elide_SEL_phi(j)) {
+                phi = ensure_phi(j, nophi);
               }
-              C->gvn_replace_by(n, m);
-            } else if (!check_elide_phi || !target->can_elide_SEL_phi(j)) {
-              phi = ensure_phi(j, nophi);
             }
-          }
-          break;
+            break;
         }
       }
       // At this point, n might be top if:
@@ -1886,11 +1890,11 @@ void Parse::merge_common(Parse::Block* target, int pnum) {
       // It is a bug if we create a phi which sees a garbage value on a live path.
 
       if (phi != nullptr) {
-	assert(n != top() || r->in(pnum) == top(), "live value must not be garbage");
+        assert(n != top() || r->in(pnum) == top(), "live value must not be garbage");
         assert(phi->region() == r, "");
         phi->set_req(pnum, n);  // Then add 'n' to the merge
         if (pnum == PhiNode::Input) {
-	  // Last merge for this Phi.
+          // Last merge for this Phi.
           // So far, Phis have had a reasonable type from ciTypeFlow.
           // Now _gvn will join that with the meet of current inputs.
           // BOTTOM is never permissible here, 'cause pessimistically
@@ -1903,7 +1907,7 @@ void Parse::merge_common(Parse::Block* target, int pnum) {
           record_for_igvn(phi);
         }
       }
-        
+
     } // End of for all values to be merged
 
     if (pnum == PhiNode::Input &&
@@ -1911,7 +1915,7 @@ void Parse::merge_common(Parse::Block* target, int pnum) {
       assert(control() == r, "");
       set_control(r->nonnull_req());
     }
-   
+
     map()->merge_replaced_nodes_with(newin);
 
     // newin has been subsumed into the lazy merge, and is now dead.
@@ -2164,7 +2168,7 @@ PhiNode *Parse::ensure_memory_phi(int idx, bool nocreate) {
 void Parse::call_register_finalizer() {
   Node* receiver = local(0);
   assert(receiver != nullptr && receiver->bottom_type()->isa_instptr() != nullptr,
-         "must have non-null instance type");
+      "must have non-null instance type");
 
   const TypeInstPtr *tinst = receiver->bottom_type()->isa_instptr();
   if (tinst != nullptr && tinst->is_loaded() && !tinst->klass_is_exact()) {
@@ -2205,10 +2209,10 @@ void Parse::call_register_finalizer() {
     result_rgn->init_req(2, top());
   } else {
     Node *call = make_runtime_call(RC_NO_LEAF,
-                                   OptoRuntime::register_finalizer_Type(),
-                                   OptoRuntime::register_finalizer_Java(),
-                                   nullptr, TypePtr::BOTTOM,
-                                   receiver);
+        OptoRuntime::register_finalizer_Type(),
+        OptoRuntime::register_finalizer_Java(),
+        nullptr, TypePtr::BOTTOM,
+        receiver);
     make_slow_call_ex(call, env()->Throwable_klass(), true);
 
     Node* fast_io  = call->in(TypeFunc::I_O);
@@ -2360,7 +2364,7 @@ void Parse::show_parse_info() {
     if (depth() == 1) {
       if( ilt->count_inlines() ) {
         tty->print("    __inlined %d (%d bytes)", ilt->count_inlines(),
-                     ilt->count_inline_bcs());
+            ilt->count_inline_bcs());
         tty->cr();
       }
     } else {
@@ -2379,7 +2383,7 @@ void Parse::show_parse_info() {
       tty->print(" (%d bytes)",method()->code_size());
       if (ilt->count_inlines()) {
         tty->print(" __inlined %d (%d bytes)", ilt->count_inlines(),
-                   ilt->count_inline_bcs());
+            ilt->count_inline_bcs());
       }
       tty->cr();
     }
@@ -2407,7 +2411,7 @@ void Parse::show_parse_info() {
     tty->print(" (%d bytes)",method()->code_size());
     if (ilt->count_inlines()) {
       tty->print(" __inlined %d (%d bytes)", ilt->count_inlines(),
-                 ilt->count_inline_bcs());
+          ilt->count_inline_bcs());
     }
     tty->cr();
   }
@@ -2435,3 +2439,4 @@ void Parse::dump_bci(int bci) {
 }
 
 #endif
+

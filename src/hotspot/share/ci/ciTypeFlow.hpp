@@ -531,6 +531,8 @@ public:
     StateVector*                     _state;
     JsrSet*                          _jsrs;
 
+    GrowableArray<Block*>*               _dispatchTargets;
+
     int                              _trap_bci;
     int                              _trap_index;
 
@@ -551,6 +553,8 @@ public:
     // This block is a secondary entry to an irreducible loop (entry but not head).
     bool                             _irreducible_loop_secondary_entry;
 
+
+    bool 			     _irreducible_entry;
     // This block has monitor entry point.
     bool                             _has_monitorenter;
 
@@ -588,11 +592,16 @@ public:
     int control() const       { return _ciblock->control_bci(); }
     JsrSet* jsrs() const      { return _jsrs; }
     
-    void setjsrs(JsrSet* jsr) {_jsrs = jsr;} 
+    void setjsrs(JsrSet* jsr) {_jsrs = jsr;}
+
+    bool is_dispatch() const   { return _dispatchTargets != nullptr; }
+    GrowableArray<Block*>*  dispatch()    const   { assert(is_dispatch(), "only dispatcher has dispatch"); return _dispatchTargets; } 
 
     bool    is_backedge_copy() const       { return _backedge_copy; }
     void   set_backedge_copy(bool z);
     int        backedge_copy_count() const { return outer()->backedge_copy_count(ciblock()->index(), _jsrs); }
+    void    new_target(GrowableArray<Block*>* newTarget)   {_dispatchTargets = newTarget; } 
+
 
     bool    is_irreducible_copy() const    { return _irreducible_copy; }
     void   set_irreducible_copy(bool z)    { _irreducible_copy = z;    }
@@ -733,7 +742,9 @@ public:
         if (lp->is_irreducible()) return false;
       return true;
     }
-    void   reset_irreducible()           {_irreducible_loop_head = false; _irreducible_loop_secondary_entry = false; }
+    void   reset_irreducible()           { _irreducible_loop_head = false; _irreducible_loop_secondary_entry = false;_irreducible_entry = true; }
+
+    bool   is_irreducible_entry() const  { return _irreducible_entry; }
 
     void   print_value_on(outputStream* st) const PRODUCT_RETURN;
     void   print_on(outputStream* st) const       PRODUCT_RETURN;
@@ -959,6 +970,7 @@ private:
   Block* create_dispatch_block(JsrSet* jsrs, Loop* lp);
   void switch_blocks(Block* target, Block* source);
   void connect_dispatch_loop(Block* dispatch, Loop* irreducible_region);
+  void connect_pred_dispatch(Block* dispatch, Block* source);
 
   void reset_blocks(Block* start);
 

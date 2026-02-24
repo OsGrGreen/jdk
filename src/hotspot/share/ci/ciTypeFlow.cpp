@@ -1601,6 +1601,7 @@ ciTypeFlow::Block::Block(ciTypeFlow* outer,
   _exceptions = nullptr;
   _exc_klasses = nullptr;
   _successors = nullptr;
+  _dispatchTargets = nullptr;
   _state = new (outer->arena()) StateVector(outer);
   JsrSet* new_jsrs =
     new (outer->arena()) JsrSet(outer->arena(), jsrs->size());
@@ -2750,13 +2751,14 @@ ciTypeFlow::Block* ciTypeFlow::add_dispatch(Loop* lp) {
 // Creates a dispatch block without adding predecessors or successors
 ciTypeFlow::Block* ciTypeFlow::create_dispatch_block(ciTypeFlow::JsrSet* jsrs, Loop* lp) {
   Arena* a = arena();
-  ciBlock* dummy = _method->get_method_blocks()->make_dummy_block();
+  //ciBlock* dummy = _method->get_method_blocks()->make_dispatch_block();
+  ciBlock* dummy = _method->get_method_blocks()->make_dispatch_block(lp->head()->start() - 1);
   Block* dispatch = new (a) Block(this, dummy, jsrs);
   _idx_to_blocklist[0]->append(dispatch);
   
   dispatch->successors(new (a) GrowableArray<Block*>(a, 1, 0, nullptr));
   dispatch->set_next_pre_order();
-
+  dispatch->new_target(new (a) GrowableArray<Block*>(a, 1, 0, nullptr));
   return dispatch;
 }
 
@@ -2767,8 +2769,15 @@ void ciTypeFlow::switch_blocks(Block* target, Block* source) {
     pred->successors()->push(target); 
     target->predecessors()->push(pred);
   }
-  source->predecessors()->clear();
+  //source->predecessors()->clear();
   //if(source->has_successors()) source->successors()->clear();
+}
+
+
+void ciTypeFlow::connect_pred_dispatch(Block* dispatch, Block* source) {
+  for(int i = 0; i < source->predecessors()->length(); ++i) {
+    dispatch->dispatch()->push(source);
+  }
 }
 
 // ------------------------------------------------------------------
@@ -2785,9 +2794,11 @@ void ciTypeFlow::connect_dispatch_loop(Block* dispatch, Loop* irr_region) {
   entry->copy_state_into(state);
   dispatch->meet(state);
   entry->print_on(tty);
+  connect_pred_dispatch(dispatch, entry);
   switch_blocks(dispatch, entry);
   
   Block* second_entry = irr_region->second_entry();
+  connect_pred_dispatch(dispatch, second_entry);
   switch_blocks(dispatch, second_entry);
    
   entry->predecessors()->push(dispatch);

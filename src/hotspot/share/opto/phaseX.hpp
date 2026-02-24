@@ -282,6 +282,7 @@ public:
   const Type* type(const Node* n) const {
     assert(n != nullptr, "must not be null");
     const Type* t = _types.fast_lookup(n->_idx);
+    //n->dump();
     assert(t != nullptr, "must set before get");
     return t;
   }

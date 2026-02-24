@@ -200,7 +200,7 @@ class Parse : public GraphKit {
 #endif
 
     // True when all non-exception predecessors have been parsed.
-    bool is_ready() const                  { return preds_parsed() == pred_count(); }
+    bool is_ready() const                  { return preds_parsed() >= pred_count(); }
 
     bool has_predicates() const            { return _has_predicates; }
     void set_has_predicates()              { _has_predicates = true; }
@@ -212,7 +212,7 @@ class Parse : public GraphKit {
       return _successors[i];
     }
     Block* successor_for_bci(int bci);
-    Block* get_dispatch();
+    Block* get_dispatch(int bci);
 
     int start() const                      { return flow()->start(); }
     int limit() const                      { return flow()->limit(); }
@@ -273,7 +273,7 @@ class Parse : public GraphKit {
     // as a "path number" because it distinguishes by which path we are
     // entering the block.
     int next_path_num() {
-      assert(preds_parsed() < pred_count(), "too many preds?");
+      if(!CIDispatch) assert(preds_parsed() < pred_count(), "too many preds?");
       return pred_count() - _preds_parsed++;
     }
 
@@ -435,11 +435,26 @@ class Parse : public GraphKit {
   }
   // Can return null if the flow pass did not complete a block.
   Block* successor_for_bci(int bci) {
-    return block()->successor_for_bci(bci);
+    Block* blk = block()->successor_for_bci(bci);
+    if (CIDispatch && block()->flow()->is_dispatch()) {
+      tty->print_cr("Finding dispatch bci: %d", bci);
+    } 
+    if (CIDispatch && blk == nullptr){
+      blk = get_dispatch(bci); 
+    }
+    
+    return blk;
   }
 
-  Block* get_dispatch() {
-    return block()->get_dispatch();
+  //Shoud be private I think....
+  Block* get_dispatch(int bci) {
+    if (block()->flow()->is_dispatch()) {
+      tty->print_cr("Finding next successor of bci: %d with new target: %d", bci, block()->successor_for_bci(block()->flow()->start() + 1)->rpo());
+      return block()->successor_for_bci(block()->flow()->start() + 1);
+    }else {
+      return block()->get_dispatch(bci);
+    }
+    return block()->get_dispatch(bci);
   }
 
  private:
@@ -583,6 +598,7 @@ class Parse : public GraphKit {
   void    jump_switch_ranges(Node* a, SwitchRange* lo, SwitchRange* hi, int depth = 0);
   bool    create_jump_tables(Node* a, SwitchRange* lo, SwitchRange* hi);
   void    linear_search_switch_ranges(Node* key_val, SwitchRange*& lo, SwitchRange*& hi);
+  void    do_dispatchswitch();
 
   // helper function for call statistics
   void count_compiled_calls(bool at_method_entry, bool is_inline) PRODUCT_RETURN;
