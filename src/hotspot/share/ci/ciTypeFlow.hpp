@@ -48,6 +48,8 @@ public:
   class StateVector;
   class Loop;
   class Block;
+  class DispatchInfo;
+  class DispatchInfo;
 
   // Build a type flow analyzer
   // Do an OSR analysis if osr_bci >= 0.
@@ -520,6 +522,26 @@ public:
     bool   is_normal_ctrl() { return index() < _pred->successors()->length(); }
   };
 
+
+  class DispatchInfo : public ArenaObj {
+     private:
+       int                          _target;
+       Block*                       _src;
+     public:
+       DispatchInfo(int target, Block* src);
+
+       int rpo() const              { return _src->rpo(); }
+       int target() const           { return _target; } 
+       static int compare(DispatchInfo** o1, DispatchInfo** o2) {
+         DispatchInfo* a = *o1;
+         DispatchInfo* b = *o2;
+         if (a->rpo() != b->rpo())
+           return a->rpo() - b->rpo();
+
+         return (a->target() < b->target()) ? -1 : (a->target() > b->target()) ? 1 : 0;
+       }
+  };
+
   // A basic block
   class Block : public ArenaObj {
   private:
@@ -531,7 +553,7 @@ public:
     StateVector*                     _state;
     JsrSet*                          _jsrs;
 
-    GrowableArray<Block*>*               _dispatchTargets;
+    GrowableArray<DispatchInfo*>*           _dispatchTargets;
 
     int                              _trap_bci;
     int                              _trap_index;
@@ -554,7 +576,7 @@ public:
     bool                             _irreducible_loop_secondary_entry;
 
 
-    bool 			     _irreducible_entry;
+    bool 			                       _irreducible_entry;
     // This block has monitor entry point.
     bool                             _has_monitorenter;
 
@@ -595,12 +617,13 @@ public:
     void setjsrs(JsrSet* jsr) {_jsrs = jsr;}
 
     bool is_dispatch() const   { return _dispatchTargets != nullptr; }
-    GrowableArray<Block*>*  dispatch()    const   { assert(is_dispatch(), "only dispatcher has dispatch"); return _dispatchTargets; } 
+    GrowableArray<DispatchInfo*>*  dispatch()    const   { assert(is_dispatch(), "only dispatcher has dispatch"); return _dispatchTargets; } 
+    void sort_dispatch()       { assert(is_dispatch(), "can only sort dispatch info if dispatcher"); _dispatchTargets->sort(DispatchInfo::compare); }
 
     bool    is_backedge_copy() const       { return _backedge_copy; }
     void   set_backedge_copy(bool z);
     int        backedge_copy_count() const { return outer()->backedge_copy_count(ciblock()->index(), _jsrs); }
-    void    new_target(GrowableArray<Block*>* newTarget)   {_dispatchTargets = newTarget; } 
+    void    new_target(GrowableArray<DispatchInfo*>* newTarget)   {_dispatchTargets = newTarget; } 
 
 
     bool    is_irreducible_copy() const    { return _irreducible_copy; }
@@ -742,7 +765,11 @@ public:
         if (lp->is_irreducible()) return false;
       return true;
     }
-    void   reset_irreducible()           { _irreducible_loop_head = false; _irreducible_loop_secondary_entry = false;_irreducible_entry = true; }
+    void   reset_irreducible()           { 
+      _irreducible_loop_head = false; 
+      _irreducible_loop_secondary_entry = false;
+      _irreducible_entry = true; 
+    }
 
     bool   is_irreducible_entry() const  { return _irreducible_entry; }
 
@@ -810,6 +837,7 @@ public:
     void reset_irreducible() {
       _irreducible = false;
     }
+
     bool is_irreducible() const { return _irreducible; }
 
     bool is_root() const { return _tail->pre_order() == max_jint; }
@@ -970,7 +998,7 @@ private:
   Block* create_dispatch_block(JsrSet* jsrs, Loop* lp);
   void switch_blocks(Block* target, Block* source);
   void connect_dispatch_loop(Block* dispatch, Loop* irreducible_region);
-  void connect_pred_dispatch(Block* dispatch, Block* source);
+  void connect_pred_dispatch(Block* dispatch, Block* source, Block* source2);
 
   void reset_blocks(Block* start);
 

@@ -293,7 +293,7 @@ void Compile::gvn_replace_by(Node* n, Node* nn) {
       initial_gvn()->hash_find_insert(use);
     }
     record_for_igvn(use);
-    PhaseIterGVN::add_users_of_use_to_worklist(nn, use, *_igvn_worklist);
+    
     i -= uses_found;    // we deleted 1 or more copies of this edge
   }
 }
@@ -2492,6 +2492,8 @@ void Compile::Optimize() {
 
   // Conditional Constant Propagation;
   print_method(PHASE_BEFORE_CCP1, 2);
+  // UseNewCode
+  if (!(CIDispatch && UseNewCode)) {
   PhaseCCP ccp( &igvn );
   assert( true, "Break here to ccp.dump_nodes_and_types(_root,999,1)");
   {
@@ -2499,7 +2501,7 @@ void Compile::Optimize() {
     ccp.do_transform();
   }
   print_method(PHASE_CCP1, 2);
-
+  
   assert( true, "Break here to ccp.dump_old2new_map()");
 
   // Iterative Global Value Numbering, including ideal transforms
@@ -2511,7 +2513,7 @@ void Compile::Optimize() {
   print_method(PHASE_ITER_GVN2, 2);
 
   if (failing())  return;
-
+  }
   // Loop transforms on the ideal graph.  Range Check Elimination,
   // peeling, unrolling, etc.
   if (!optimize_loops(igvn, LoopOptsDefault)) {

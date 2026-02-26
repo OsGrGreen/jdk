@@ -435,10 +435,7 @@ class Parse : public GraphKit {
   }
   // Can return null if the flow pass did not complete a block.
   Block* successor_for_bci(int bci) {
-    Block* blk = block()->successor_for_bci(bci);
-    if (CIDispatch && block()->flow()->is_dispatch()) {
-      tty->print_cr("Finding dispatch bci: %d", bci);
-    } 
+    Block* blk = block()->successor_for_bci(bci); 
     if (CIDispatch && blk == nullptr){
       blk = get_dispatch(bci); 
     }

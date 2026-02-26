@@ -533,7 +533,6 @@ Node *RegionNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   if (can_reshape) {            // Need DU info to check for Phi users
     try_clean_mem_phis(phase->is_IterGVN());
     has_phis = (has_phi() != nullptr);       // Cache result
-
     if (!has_phis) {            // No Phi users?  Nothing merging?
       for (uint i = 1; i < req()-1; i++) {
         Node *if1 = in(i);
@@ -554,7 +553,6 @@ Node *RegionNode::Ideal(PhaseGVN *phase, bool can_reshape) {
       }
     }
   }
-
   // Remove TOP or null input paths. If only 1 input path remains, this Region
   // degrades to a copy.
   bool add_to_worklist = true;

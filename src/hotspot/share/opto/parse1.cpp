@@ -511,12 +511,10 @@ Parse::Parse(JVMState* caller, ciMethod* parse_method, float expected_uses)
     _tf = C->tf();     // the OSR entry type is different
     _entry_bci = C->entry_bci();
     _flow = method()->get_osr_flow_analysis(osr_bci());
-    if (CIIrrFix) tty->print_cr("Is done with flow analysis");
   } else {
     _tf = TypeFunc::make(method());
     _entry_bci = InvocationEntryBci;
     _flow = method()->get_flow_analysis();
-    if (CIIrrFix) tty->print_cr("Is done with flow analysis");  
   }
   if (CIIrrDebug) _flow->dump_dot_graph();
   //_flow->print_blocks(tty);
@@ -656,7 +654,6 @@ Parse::Parse(JVMState* caller, ciMethod* parse_method, float expected_uses)
   if (log)  log->done("parse nodes='%d' live='%d' memory='%zu'",
       C->unique(), C->live_nodes(), C->node_arena()->used());
 
-  if (CIIrrFix) tty->print_cr("Done with parsing"); 
 }
 
 //---------------------------do_all_blocks-------------------------------------
@@ -741,7 +738,6 @@ void Parse::do_all_blocks() {
 
       // Check for bailouts.
       if (failing())  {
-        tty->print_cr("Is failing -- returning");      
         return;
       }
 
@@ -1000,10 +996,8 @@ void Parse::do_exits() {
   // Now peephole on the return bits
   Node* region = _exits.control();
   _exits.set_control(gvn().transform(region));
-  region->dump();
   Node* iophi = _exits.i_o();
   _exits.set_i_o(gvn().transform(iophi));
-  iophi->dump();
   // Figure out if we need to emit the trailing barrier. The barrier is only
   // needed in the constructors, and only in three cases:
   //
@@ -1059,7 +1053,6 @@ void Parse::do_exits() {
   }
   // Clean up input MergeMems created by transforming the slices
   _gvn.transform(_exits.merged_memory());
-  tty->print_cr("Random point");
   if (tf()->range()->cnt() > TypeFunc::Parms) {
     const Type* ret_type = tf()->range()->field_at(TypeFunc::Parms);
     Node*       ret_phi  = _gvn.transform( _exits.argument(0) );
@@ -1086,7 +1079,6 @@ void Parse::do_exits() {
   // (e.g., null checks) arising from multiple points within this method.
   // See GraphKit::add_exception_state, which performs the commoning.
   bool do_synch = method()->is_synchronized();
-  tty->print_cr("Doing logic for creating returnNode");
   // record exit from a method if compiled while Dtrace is turned on.
   if (do_synch || C->env()->dtrace_method_probes() || _replaced_nodes_for_exceptions) {
     // First move the exception list out of _exits:
@@ -1133,7 +1125,6 @@ void Parse::do_exits() {
       _exits.add_exception_state(ex_map);
     }
   }
-  tty->print_cr("Pretty much done!");
   _exits.map()->apply_replaced_nodes(_new_idx);
 }
 
@@ -1615,7 +1606,6 @@ void Parse::do_one_block() {
       merge(bci());
       break;
     }
-    tty->print_cr("\t BCI: %d   limit: %d", bci(), block()->limit());
     if(!(block() != nullptr && block()->flow()->is_dispatch())) assert(bci() < block()->limit(), "bci still in block");
 
     if (log != nullptr) {
