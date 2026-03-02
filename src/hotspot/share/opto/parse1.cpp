@@ -1792,11 +1792,9 @@ void Parse::merge_common(Parse::Block* target, int pnum) {
 #endif
     // We must not manufacture more phis if the target is already parsed.
     bool nophi = target->is_parsed();
-
     SafePointNode* newin = map();// Hang on to incoming mapping
     Block* save_block = block(); // Hang on to incoming block;
     load_state_from(target);    // Get prior mapping
-
     assert(newin->jvms()->locoff() == jvms()->locoff(), "JVMS layouts agree");
     assert(newin->jvms()->stkoff() == jvms()->stkoff(), "JVMS layouts agree");
     assert(newin->jvms()->monoff() == jvms()->monoff(), "JVMS layouts agree");
@@ -1822,6 +1820,7 @@ void Parse::merge_common(Parse::Block* target, int pnum) {
       record_for_igvn(r);
     }
 
+    
     // Update all the non-control inputs to map:
     assert(TypeFunc::Parms == newin->jvms()->locoff(), "parser map should contain only youngest jvms");
     bool check_elide_phi = target->is_SEL_backedge(save_block);
@@ -1880,6 +1879,13 @@ void Parse::merge_common(Parse::Block* target, int pnum) {
       // It is a bug if we create a phi which sees a garbage value on a live path.
 
       if (phi != nullptr) {
+        // Insert some dummy value for the phi if the phi is for the dispatch block
+        if (n == top() && target->flow()->is_dispatch()){
+          // In this case this safepoint does not use / update a value that the dispatcher must handle...
+          // These cases will never happen in practice, however are needed since they can "theoretically" happen
+          phi->set_req(pnum, phi);
+          continue; // try if a continue works (?)
+        }
         assert(n != top() || r->in(pnum) == top(), "live value must not be garbage");
         assert(phi->region() == r, "");
         phi->set_req(pnum, n);  // Then add 'n' to the merge
@@ -2068,6 +2074,8 @@ PhiNode *Parse::ensure_phi(int idx, bool nocreate) {
   assert(region->is_Region(), "");
 
   Node* o = map->in(idx);
+  //tty->print_cr("Node:::: ");
+  //o->dump();
   assert(o != nullptr, "");
 
   if (o == top())  return nullptr; // TOP always merges into TOP

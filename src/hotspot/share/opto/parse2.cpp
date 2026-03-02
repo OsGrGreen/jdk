@@ -415,6 +415,8 @@ void Parse::do_dispatchswitch() {
 
   block()->flow()->sort_dispatch();
   
+  //add_safepoint();
+
   for (int i = 0; i < len; ++i){
     int targetBCI = block()->flow()->dispatch()->at(i)->target();
     //tty->print_cr("Target: %d, from RPO: %d", targetBCI, block()->flow()->dispatch()->at(i)->rpo());
@@ -1541,7 +1543,6 @@ void Parse::do_if(BoolTest::mask btest, Node* c) {
   int target_bci = iter().get_dest();
   Block* branch_block = successor_for_bci(target_bci);
   Block* next_block   = successor_for_bci(iter().next_bci());
-
   float cnt;
   float prob = branch_prediction(cnt, btest, target_bci, c);
   float untaken_prob = 1.0 - prob;
@@ -1559,6 +1560,7 @@ void Parse::do_if(BoolTest::mask btest, Node* c) {
       branch_block->next_path_num();
       next_block->next_path_num();
     }
+    tty->print_cr("Early return...");
     return;
   }
   Node* counter = nullptr;
@@ -1737,6 +1739,7 @@ void Parse::adjust_map_after_if(BoolTest::mask btest, Node* c, float prob, Block
   }
 
   bool is_fallthrough = (path == successor_for_bci(iter().next_bci()));
+ 
 
   if (path_is_suitable_for_uncommon_trap(prob)) {
     repush_if_args();
@@ -2056,6 +2059,14 @@ void Parse::do_one_bytecode() {
       //Add dispatcher switch
        // Add phi for predecessors, to determine successor
        // How do I determine the order of successors (should be RPO)
+    // Here we must change all inputs to the map to be a phi if they are not already a phi-node...
+    
+    int local = jvms()->locoff();
+    while(jvms()->is_loc(local)){
+      ensure_phi(local, false);
+      local++;
+    }
+
     do_dispatchswitch();
     return;
   }
@@ -2794,6 +2805,7 @@ void Parse::do_one_bytecode() {
     merge(target_bci);
     // See if we can get some profile data and hand it off to the next block
     Block *target_block = successor_for_bci(target_bci);
+    //return;
     if (target_block->pred_count() != 1)  break;
     ciMethodData* methodData = method()->method_data();
     if (!methodData->is_mature())  break;

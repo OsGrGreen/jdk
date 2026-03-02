@@ -1927,7 +1927,7 @@ bool ciTypeFlow::Block::is_clonable_exit(ciTypeFlow::Loop* lp) {
   int in_loop_cnt = 0;
   for (SuccIter iter(this); !iter.done(); iter.next()) {
     Block* succ = iter.succ();
-    tty->print_cr("Trying for: %d", succ->dot_id());
+    //tty->print_cr("Trying for: %d", succ->dot_id());
     if (succ->is_dispatch()) {
       lp->head()->set_loop(nullptr);
       return false;
@@ -2291,7 +2291,12 @@ bool ciTypeFlow::clone_loop_heads(StateVector* temp_vector, JsrSet* temp_set) {
   for (PreorderLoops iter(loop_tree_root()); !iter.done(); iter.next()) {
     Loop* lp = iter.current();
     Block* head = lp->head();
-    tty->print_cr("Head of clonable exit (maybe) is: %d", head->dot_id());
+    if (head->is_dispatch()) {
+      rslt = true;
+      //continue;
+      return true;
+    }
+    //tty->print_cr("Head of clonable exit (maybe) is: %d", head->dot_id());
     if (lp == loop_tree_root() ||
         lp->is_irreducible() ||
         !head->is_clonable_exit(lp))
@@ -2757,16 +2762,16 @@ ciTypeFlow::Block* ciTypeFlow::add_dispatch(Loop* lp) {
   Block* dispatch = create_dispatch_block(lp->head()->jsrs(), lp);
   connect_dispatch_loop(dispatch, lp);
   lp->reset_irreducible();
-  /*while(true) {
+  while(true) {
     Loop* plp = lp->child();
     if (plp == nullptr){
       break;
     }
     lp = plp;
-    //lp->reset_irreducible();
-  }*/
+    lp->reset_irreducible();
+  }
   _has_irreducible_entry = false;
-  dump_dot_graph();
+  //dump_dot_graph();
   //print_blocks(tty);
   //Here we must change the pre-order of all current nodes...
   return dispatch;
@@ -2843,6 +2848,14 @@ void ciTypeFlow::connect_pred_dispatch(Block* dispatch, Block* source, Block* so
 // Connect the dispatch block to the rest of the CFG
 void ciTypeFlow::connect_dispatch_loop(Block* dispatch, Loop* irr_region) {
   // Simply redirect predecessors and successors of head and second entry.
+  
+
+  // The current problem is that the RPO is wrongly calculated
+  // In the dispatcherDoubleRPO block #4 comes after #6, however, this makes no sense
+  // The block #6 should have a lower RPO since it comes before #4...
+  // So we must change the RPO order to make this correct
+
+
   Block* entry = irr_region->head();
   StateVector* state = new StateVector(this);
   Block* tmp = entry->next();
@@ -2852,8 +2865,8 @@ void ciTypeFlow::connect_dispatch_loop(Block* dispatch, Loop* irr_region) {
   dispatch->meet(state);
 
   Block* second_entry = irr_region->second_entry();
-  tty->print_cr("Entry is: %d", entry->dot_id());
-  tty->print_cr("Second entry is: %d", second_entry->dot_id());
+  //tty->print_cr("Entry is: %d", entry->dot_id());
+  //tty->print_cr("Second entry is: %d", second_entry->dot_id());
   connect_pred_dispatch(dispatch, entry, second_entry);
   
   switch_blocks(dispatch, entry); 
@@ -3077,7 +3090,6 @@ void ciTypeFlow::connect_dispatch_loop(Block* dispatch, Loop* irr_region) {
 				       bool handleIrr) {
 	  int dft_len = 100;
 	  GrowableArray<Block*> stk(dft_len);
-	 
 	  ciBlock* dummy = _method->get_method_blocks()->make_dummy_block();
 	  JsrSet* root_set = new JsrSet(0);
 	  Block* root_head = new (arena()) Block(this, dummy, root_set);
@@ -3087,69 +3099,71 @@ void ciTypeFlow::connect_dispatch_loop(Block* dispatch, Loop* irr_region) {
 	  root_tail->set_pre_order(max_jint);
 	  root_tail->set_post_order(max_jint);
 	  set_loop_tree_root(new (arena()) Loop(root_head, root_tail));
-
 	  stk.push(start);
 	  
 	  _next_pre_order = 0;  // initialize pre_order counter
 	  _rpo_list = nullptr;
 	  int next_po = 0;      // initialize post_order counter
 	  Block* irreducible = nullptr;
-	  // Compute RPO and the control flow graph
-	  int size;
-	  while ((size = stk.length()) > 0) {
-	    Block* blk = stk.top(); // Leave node on stack
-	    if (!blk->is_visited()) {
-	      // forward arc in graph
-	      assert (!blk->has_pre_order(), "");
-	      blk->set_next_pre_order();
+    // Compute RPO and the control flow graph
+    int size;
+    while ((size = stk.length()) > 0) {
+      Block* blk = stk.top(); // Leave node on stack
+      if (!blk->is_visited()) {
+        // forward arc in graph
+        assert (!blk->has_pre_order(), "");
+        blk->set_next_pre_order();
 
-	      if (_next_pre_order >= (int)Compile::current()->max_node_limit() / 2) {
-		// Too many basic blocks.  Bail out.
-		// This can happen when try/finally constructs are nested to depth N,
-		// and there is O(2**N) cloning of jsr bodies.  See bug 4697245!
-		// "MaxNodeLimit / 2" is used because probably the parser will
-		// generate at least twice that many nodes and bail out.
-		record_failure("too many basic blocks");
-		return nullptr;
-	      }
-	      if (do_flow) {
-		flow_block(blk, temp_vector, temp_set);
-		if (failing()) return irreducible; // Watch for bailouts.
-	      }
-	    } else if (!blk->is_post_visited()) {
-	      // cross or back arc
-	      for (SuccIter iter(blk); !iter.done(); iter.next()) {
-		Block* succ = iter.succ();
-		if (!succ->is_visited()) {
-		  stk.push(succ);
-		}
-	      }
-	      if (stk.length() == size) {
-		// There were no additional children, post visit node now
-		stk.pop(); // Remove node from stack
-
-		Block* irreducible_block = build_loop_tree(blk);
-		if (irreducible_block != nullptr && irreducible == nullptr && CIIrrFix){
-		  irreducible = irreducible_block;
-		}
-		if (CIDispatch && irreducible_block != nullptr){
-		  irreducible_block->set_post_order(next_po++);
-		}
-		blk->set_post_order(next_po++);   // Assign post order
-		prepend_to_rpo_list(blk);
-		assert(blk->is_post_visited(), "");
-
-		if (blk->is_loop_head() && !blk->is_on_work_list()) {
-		  // Assume loop heads need more data flow
-		  add_to_work_list(blk);
-		}
-	      }
-	    } else {
-	      stk.pop(); // Remove post-visited node from stack
-	    }
-	  }
-	  return irreducible;
-	}
+        if (_next_pre_order >= (int)Compile::current()->max_node_limit() / 2) {
+          // Too many basic blocks.  Bail out.
+          // This can happen when try/finally constructs are nested to depth N,
+          // and there is O(2**N) cloning of jsr bodies.  See bug 4697245!
+          // "MaxNodeLimit / 2" is used because probably the parser will
+          // generate at least twice that many nodes and bail out.
+          record_failure("too many basic blocks");
+          return nullptr;
+        }
+        if (do_flow) {
+          flow_block(blk, temp_vector, temp_set);
+          if (failing()) return irreducible; // Watch for bailouts.
+        }
+      } else if (!blk->is_post_visited()) {
+        // cross or back arc
+        for (SuccIter iter(blk); !iter.done(); iter.next()) {
+          Block* succ = iter.succ();
+          if (!succ->is_visited()) {
+            stk.push(succ);
+          }
+        }
+        if (stk.length() == size) {
+          // There were no additional children, post visit node now
+          stk.pop(); // Remove node from stack
+          if (handleIrr) {
+            Block* irreducible_block = build_loop_tree(blk);
+            if (irreducible_block != nullptr && irreducible == nullptr && CIIrrFix){
+              irreducible = irreducible_block;
+            }
+            if (CIDispatch && irreducible_block != nullptr){
+              // Do something here to manipulate the post orders..
+              irreducible_block->set_post_order(next_po++);
+              // If we have created a dispatch block then make sure to add the new successors to the worklist in the correct order
+              // Such that the RPO becomes correct...
+            }
+          }
+          blk->set_post_order(next_po++);   // Assign post order
+          prepend_to_rpo_list(blk);
+          assert(blk->is_post_visited(), "");
+          if (blk->is_loop_head() && !blk->is_on_work_list()) {
+            // Assume loop heads need more data flow
+            add_to_work_list(blk);
+          }
+        }
+      } else {
+        stk.pop(); // Remove post-visited node from stack
+      }
+    }
+    return irreducible;
+  }
 
 	// ------------------------------------------------------------------
 	// ciTypeFlow::flow_types
@@ -3171,7 +3185,7 @@ void ciTypeFlow::connect_dispatch_loop(Block* dispatch, Loop* irr_region) {
 
 	  // Depth first visit
 	  Block* irr_block = df_flow_types(start, true /*do flow*/, temp_vector, temp_set, true);
-	  int i = 0;
+    int i = 0;
 	  while (irr_block != nullptr){
 	    if (CIPrintTypeFlowCFGs && i < 1) {
 	      dump_dot_graph();
@@ -3198,19 +3212,29 @@ void ciTypeFlow::connect_dispatch_loop(Block* dispatch, Loop* irr_region) {
 	  if (loop_tree_root()->child() != nullptr &&
 	      env()->comp_level() >= CompLevel_full_optimization) {
 	      // Loop optimizations are not performed on Tier1 compiles.
-
 	    bool changed = clone_loop_heads(temp_vector, temp_set);
-
 	    // If some loop heads were cloned, recompute postorder and loop tree
-	    if (changed) {
-	      loop_tree_root()->set_child(nullptr);
+	    if (changed && CIDispatch) { 
+        temp_vector = new StateVector(this);
+	      temp_set    = new JsrSet(4);
+
+        loop_tree_root()->set_child(nullptr);
 	      for (Block* blk = _rpo_list; blk != nullptr;) {
-		Block* next = blk->rpo_next();
-		blk->df_init();
-		blk = next;
+		      Block* next = blk->rpo_next();
+		      blk->df_init();
+		      blk = next;
 	      }
 	      df_flow_types(start, false /*no flow*/, temp_vector, temp_set, false);
-	    }
+	    } else if (changed) {
+        loop_tree_root()->set_child(nullptr);
+	      for (Block* blk = _rpo_list; blk != nullptr;) {
+		      Block* next = blk->rpo_next();
+		      blk->df_init();
+		      blk = next;
+	      }
+	      df_flow_types(start, false /*no flow*/, temp_vector, temp_set, true);
+
+      }
 	  }
 
 	  if (CITraceTypeFlow) {
@@ -3238,7 +3262,7 @@ void ciTypeFlow::connect_dispatch_loop(Block* dispatch, Loop* irr_region) {
 	//
 	// Create the block map, which indexes blocks in reverse post-order.
 	void ciTypeFlow::map_blocks() {
-	  dump_dot_graph();
+	  //dump_dot_graph();
 	  assert(_block_map == nullptr, "single initialization");
 	  int block_ct = _next_pre_order;
 	  _block_map = NEW_ARENA_ARRAY(arena(), Block*, block_ct);
@@ -3251,7 +3275,7 @@ void ciTypeFlow::connect_dispatch_loop(Block* dispatch, Loop* irr_region) {
 	    _block_map[rpo] = blk;
 	    blk = blk->rpo_next();
 	  }
-	  tty->print_cr("");
+	  //tty->print_cr("");
 	  assert(blk == nullptr, "should be done");
           for (int j = 0; j < block_ct; j++) {
 	    assert(_block_map[j] != nullptr, "must not drop any blocks");
@@ -3362,7 +3386,7 @@ void ciTypeFlow::connect_dispatch_loop(Block* dispatch, Loop* irr_region) {
 	  }
 
 #ifndef PRODUCT
-	  if (CIPrintTypeFlowCFGs || true) {
+	  if (CIPrintTypeFlowCFGs) {
 	    dump_dot_graph();
 	  }
 	  if (CIIrrDebug) {
@@ -3509,8 +3533,10 @@ void ciTypeFlow::connect_dispatch_loop(Block* dispatch, Loop* irr_region) {
 
 
 	int ciTypeFlow::Block::dot_id() const {
-	  if (has_pre_order()) return pre_order();
+	 
 	  if (has_rpo())       return rpo();
+    //if (has_post_order()) return -post_order();
+    if (has_pre_order()) return pre_order();
 	  return -1;
 	}
 
@@ -3544,7 +3570,7 @@ void ciTypeFlow::connect_dispatch_loop(Block* dispatch, Loop* irr_region) {
 	      }
 	      //fs->print("<br/>");
 	      fs->print("<br align=\"left\"/>");
-	      if (CIIrrDebug || (!CIIrrFix && CIIrrDebug)) {   
+	      if (CIIrrDebug && !blk->is_dispatch()) {   
 		stringStream bytecode;
 		Thread *thread = Thread::current();
 		ResourceMark rm(thread);
