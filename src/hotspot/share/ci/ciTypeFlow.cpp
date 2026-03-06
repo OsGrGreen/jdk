@@ -2836,8 +2836,8 @@ void ciTypeFlow::switch_blocks(Block* target, Block* source) {
     Block* pred = source->predecessors()->at(i);
     if (pred->successors()->contains(source)){
       pred->successors()->remove(source);
-      pred->successors()->push(target); 
     }
+    pred->successors()->push(target); 
     target->predecessors()->push(pred);
   }
   //source->predecessors()->clear();
@@ -3031,8 +3031,11 @@ void ciTypeFlow::connect_dispatch_loop(Block* dispatch, Loop* irr_region) {
           blk->successors()->push(clone);
           if (_work_list == succ) _work_list = blk;
 	        blk->set_next(clone); 
-          clone->set_pre_order(blk->pre_order());
-
+          clone->set_pre_order(succ->pre_order());
+          if (succ->has_post_order()){
+            clone->set_post_order(succ->post_order());
+            //add_to_work_list(clone); // Clone needs work...
+          }
           irreducible = succ;
 	   	  }
 	    }
