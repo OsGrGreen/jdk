@@ -448,8 +448,6 @@ class Parse : public GraphKit {
     if (block()->flow()->is_dispatch()) {
       tty->print_cr("Finding next successor of bci: %d with new target: %d", bci, block()->successor_for_bci(block()->flow()->start() + 1)->rpo());
       return block()->successor_for_bci(block()->flow()->start() + 1);
-    }else {
-      return block()->get_dispatch(bci);
     }
     return block()->get_dispatch(bci);
   }

@@ -2055,7 +2055,7 @@ void Parse::do_one_bytecode() {
   }
 #endif
   if (block()->flow()->is_dispatch() && CIDispatch){
-    bc(); // Needed for IGV 
+    //bc(); // Needed for IGV maybe 
       //Add dispatcher switch
        // Add phi for predecessors, to determine successor
        // How do I determine the order of successors (should be RPO)
@@ -2066,7 +2066,7 @@ void Parse::do_one_bytecode() {
       ensure_phi(local, false);
       local++;
     }
-
+    tty->print_cr("Doing dispatch...");
     do_dispatchswitch();
     return;
   }

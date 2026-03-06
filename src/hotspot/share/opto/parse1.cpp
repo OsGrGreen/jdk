@@ -1588,7 +1588,7 @@ void Parse::do_one_block() {
     // Learn the current bci from the iterator:
     set_parse_bci(iter().cur_bci());
 
-    if (bci() == 0 && block()->limit() == -1 && CIDispatch){
+    if (block()->flow()->is_dispatch() && CIDispatch){
       //Add dispatcher switch
       // Add phi for predecessors, to determine successor
       // (how the hell do I determine successor (?)

@@ -1927,7 +1927,6 @@ bool ciTypeFlow::Block::is_clonable_exit(ciTypeFlow::Loop* lp) {
   int in_loop_cnt = 0;
   for (SuccIter iter(this); !iter.done(); iter.next()) {
     Block* succ = iter.succ();
-    //tty->print_cr("Trying for: %d", succ->dot_id());
     if (succ->is_dispatch()) {
       lp->head()->set_loop(nullptr);
       return false;
@@ -2296,7 +2295,6 @@ bool ciTypeFlow::clone_loop_heads(StateVector* temp_vector, JsrSet* temp_set) {
       //continue;
       return true;
     }
-    //tty->print_cr("Head of clonable exit (maybe) is: %d", head->dot_id());
     if (lp == loop_tree_root() ||
         lp->is_irreducible() ||
         !head->is_clonable_exit(lp))
@@ -2448,7 +2446,9 @@ void ciTypeFlow::flow_block(ciTypeFlow::Block* block,
     block->print_on(tty);
   }
   assert(block->has_pre_order(), "pre-order is assigned before 1st flow");
-
+  if (block->is_dispatch()){
+    return; //If this is a dispatch block it has no effects...
+  }
   int start = block->start();
   int limit = block->limit();
   int control = block->control();
@@ -2571,6 +2571,14 @@ int ciTypeFlow::Loop::profiled_count() {
   if (_profiled_count >= 0) {
     return _profiled_count;
   }
+  if (head() == nullptr){
+    return 0;
+  }
+  // TODO: Improve this!!!
+  if (head()->is_dispatch()){
+    return 0;
+  }
+
   ciMethodData* methodData = outer()->method()->method_data();
   if (!methodData->is_mature()) {
     _profiled_count = 0;
@@ -2634,8 +2642,24 @@ int ciTypeFlow::Loop::profiled_count() {
       return _profiled_count;
     }
   } else {
-    assert((iter.get_dest() == head()->start()) == (succs->at(ciTypeFlow::IF_TAKEN) == head()), "bytecode and CFG not consistent");
-    assert((tail->limit() == head()->start()) == (succs->at(ciTypeFlow::IF_NOT_TAKEN) == head()), "bytecode and CFG not consistent");
+    //tty->print_cr("Destination: %d, head_start: %d", iter.get_dest(), head()->start());
+    //tty->print_cr("If taken: %d, limit: %d", succs->at(ciTypeFlow::IF_TAKEN)->pre_order(), succs->at(ciTypeFlow::IF_TAKEN)->limit());
+    //tty->print_cr("Head: %d, limit: %d", head()->pre_order(), head()->limit());
+   
+
+    // TODO: Fix some better way to do this:
+    // I think that the current problem is that a faulty successor is chosen (or a faulty head) such that the original block is correct, however, it is incorrect for the specific clone that this code think it is connected too.
+    // I dont really know how to fix this right now...
+    if (!CIIrrFix) {
+      assert((iter.get_dest() == head()->start()) == (succs->at(ciTypeFlow::IF_TAKEN) == head()), "bytecode and CFG not consistent");
+    } else {
+      //assert((iter.get_dest() == head()->start()) == (succs->at(ciTypeFlow::IF_TAKEN)->limit() == head()->limit()), "bytecode and CFG not consistent (in the presence of node splitting)");
+    }
+    if (!CIIrrFix) {
+      assert((tail->limit() == head()->start()) == (succs->at(ciTypeFlow::IF_NOT_TAKEN) == head()), "bytecode and CFG not consistent");
+    } else {
+      //assert((tail->limit() == head()->start()) == (succs->at(ciTypeFlow::IF_NOT_TAKEN)->limit() == head()->limit()), "bytecode and CFG not consistent");
+    }
     if (succs->at(ciTypeFlow::IF_TAKEN) == head()) {
       _profiled_count = outer()->method()->scale_count(data->as_JumpData()->taken());
       return _profiled_count;
@@ -2657,7 +2681,9 @@ bool ciTypeFlow::Loop::at_insertion_point(Loop* lp, Loop* current) {
     return false;
   }
   // In the case of a shared head, make the most frequent head/tail (as reported by profiling) the inner loop
+  //tty->print_cr("Insertion point for:");
   if (current->head() == lp->head()) {
+    //tty->print_cr("Calling profiled_count since shared head");
     int lp_count = lp->profiled_count();
     int current_count = current->profiled_count();
     if (current_count < lp_count) {
@@ -2682,6 +2708,11 @@ bool ciTypeFlow::Loop::at_insertion_point(Loop* lp, Loop* current) {
 //  descending on primary key: loop head's pre_order, and
 //  ascending  on secondary key: loop tail's pre_order.
 ciTypeFlow::Loop* ciTypeFlow::Loop::sorted_merge(Loop* lp) {
+  //tty->print_cr("Doing sorted merge on this:");
+  //print(tty);
+  //tty->print_cr("INTO: ");
+  //lp->print(tty);
+  //tty->print_cr("\n");
   Loop* leaf = this;
   Loop* prev = nullptr;
   Loop* current = leaf;
@@ -2758,7 +2789,12 @@ void ciTypeFlow::reset_blocks(Block* start) {
 // Add dispatch block to the flow graph
 
 ciTypeFlow::Block* ciTypeFlow::add_dispatch(Loop* lp) {
+  if (lp == nullptr) {
+    tty->print_cr("Loop does not exsist (?)");
+  }
   //assert(lp->is_irreducible(), "Must be irreducible to add dispatch block");
+  
+
   Block* dispatch = create_dispatch_block(lp->head()->jsrs(), lp);
   connect_dispatch_loop(dispatch, lp);
   lp->reset_irreducible();
@@ -2797,8 +2833,10 @@ ciTypeFlow::Block* ciTypeFlow::create_dispatch_block(ciTypeFlow::JsrSet* jsrs, L
 void ciTypeFlow::switch_blocks(Block* target, Block* source) {
   for (int i = 0; i < source->predecessors()->length(); ++i) {
     Block* pred = source->predecessors()->at(i);
-    pred->successors()->remove(source);
-    pred->successors()->push(target); 
+    if (pred->successors()->contains(source)){
+      pred->successors()->remove(source);
+      pred->successors()->push(target); 
+    }
     target->predecessors()->push(pred);
   }
   //source->predecessors()->clear();
@@ -2865,8 +2903,6 @@ void ciTypeFlow::connect_dispatch_loop(Block* dispatch, Loop* irr_region) {
   dispatch->meet(state);
 
   Block* second_entry = irr_region->second_entry();
-  //tty->print_cr("Entry is: %d", entry->dot_id());
-  //tty->print_cr("Second entry is: %d", second_entry->dot_id());
   connect_pred_dispatch(dispatch, entry, second_entry);
   
   switch_blocks(dispatch, entry); 
@@ -2957,12 +2993,14 @@ void ciTypeFlow::connect_dispatch_loop(Block* dispatch, Loop* irr_region) {
 	    
 	    // Report irreducibility
 	    if(CIIrrFix){
-		if (lp->head()->is_post_visited() && lp != loop_tree_root()){
-			//tty->print_cr("Found irreducible block %d", succ->dot_id());
-			//tty->print_cr("Found while traversing %d", blk->dot_id());
-			//tty->print_cr("Head of loop is %d", succ->loop()->head()->dot_id());
-			if(irreducible == nullptr) irreducible = lp->head();
-		}
+		    if (lp->head()->is_post_visited() && lp != loop_tree_root()){
+			    tty->print_cr("Found irreducible block %d", succ->pre_order());
+			    tty->print_cr("Found while traversing %d", blk->pre_order());
+			    tty->print_cr("Head of loop is %d", succ->loop()->head()->pre_order());
+			    tty->print_cr("Clone starts at: %d", lp->head()->start());
+          
+          if(irreducible == nullptr) irreducible = lp->head();
+	   	  }
 	    }
 	    
 	    // TODO: Update this check in some way...
@@ -2973,14 +3011,16 @@ void ciTypeFlow::connect_dispatch_loop(Block* dispatch, Loop* irr_region) {
 	      _has_irreducible_entry = true;
 	      if(!CIDispatch) lp->set_irreducible(succ);
 	      if (!succ->is_on_work_list()) {
-		// Assume irreducible entries need more data flow
-		add_to_work_list(succ);
+          // Assume irreducible entries need more data flow
+          add_to_work_list(succ);
 	      }
 	      Loop* plp = lp->parent();
 	      
-        if (plp == nullptr || plp == loop_tree_root()){
-          // Unsure where this block should be...
-          if(CIDispatch && irreducible_loop == nullptr){
+        if (!plp->head()->is_post_visited() || plp == nullptr || plp == loop_tree_root()){
+          // Here we also want to break when the second entry no longer is part of the loop...
+          if(CIDispatch){
+             //tty->print_cr("Found irreducible region");
+             //lp->print(tty);
              irreducible_loop = lp;
              _has_irreducible_entry = true;
              lp->set_irreducible(succ);
@@ -3026,8 +3066,7 @@ void ciTypeFlow::connect_dispatch_loop(Block* dispatch, Loop* irr_region) {
 	    blk->set_loop(innermost);
 	    innermost->def_locals()->add(blk->def_locals());
 	  }
-
-	  if (_has_irreducible_entry && CIDispatch) {
+	  if (irreducible_loop != nullptr && _has_irreducible_entry && CIDispatch) {
 	    irreducible = add_dispatch(irreducible_loop);
 	  }	  
 	  return irreducible;
@@ -3140,7 +3179,7 @@ void ciTypeFlow::connect_dispatch_loop(Block* dispatch, Loop* irr_region) {
           stk.pop(); // Remove node from stack
           if (handleIrr) {
             Block* irreducible_block = build_loop_tree(blk);
-            if (irreducible_block != nullptr && irreducible == nullptr && CIIrrFix){
+            if (irreducible_block != nullptr && irreducible == nullptr){
               irreducible = irreducible_block;
             }
             if (CIDispatch && irreducible_block != nullptr){
@@ -3185,27 +3224,43 @@ void ciTypeFlow::connect_dispatch_loop(Block* dispatch, Loop* irr_region) {
 
 	  // Depth first visit
 	  Block* irr_block = df_flow_types(start, true /*do flow*/, temp_vector, temp_set, true);
+    
+    if (CIPrintLoops) {
+      Loop* lp = loop_tree_root(); 
+    }
+
     int i = 0;
-	  while (irr_block != nullptr){
-	    if (CIPrintTypeFlowCFGs && i < 1) {
+	  while (irr_block != nullptr && CIIrrFix){
+      if (CIPrintTypeFlowCFGs && i < 1) {
 	      dump_dot_graph();
 	    }
-	    if (CIIrrFix) clone_irreducible_block(irr_block); 
+	   
 	    if(CIIrrDebug) print_blocks(tty);
-	    reset_blocks(start);
+      if (CIIrrFix) clone_irreducible_block(irr_block); 
+	    reset_blocks(start);  
+      //loop_tree_root()->set_child(nullptr);
 	    temp_vector = new StateVector(this);
 	    temp_set    = new JsrSet(4);
 	    // Create the method entry block.
 	    start = block_at(start_bci(), temp_set);
 	    start->meet(start_state);
+
 	    irr_block = df_flow_types(start, false, temp_vector, temp_set, true);
 	    if (CIPrintTypeFlowCFGs && i < 15) {
 	      dump_dot_graph();
 	    }
 	    i = i + 1;
+      if ( i % 50 == 0) {
+	      tty->print_cr("Trying to fix irreducibility: %d", i); 
+        dump_dot_graph();
+      }
 	  }
-	  if (i != 0) return; // Early return ... The final steps break the graph for some reason
-	  if (failing())  return;
+	  if (i != 0) {
+      tty->print_cr("Done with node splitting");
+      dump_dot_graph();
+      return; // Early return ... The final steps break the graph for some reason
+	  }
+    if (failing())  return;
 	  assert(_rpo_list == start, "must be start");
 
 	  // Any loops found?
@@ -3214,7 +3269,7 @@ void ciTypeFlow::connect_dispatch_loop(Block* dispatch, Loop* irr_region) {
 	      // Loop optimizations are not performed on Tier1 compiles.
 	    bool changed = clone_loop_heads(temp_vector, temp_set);
 	    // If some loop heads were cloned, recompute postorder and loop tree
-	    if (changed && CIDispatch) { 
+	    if (changed && CIDispatch && irr_block != nullptr) { 
         temp_vector = new StateVector(this);
 	      temp_set    = new JsrSet(4);
 
@@ -3275,7 +3330,6 @@ void ciTypeFlow::connect_dispatch_loop(Block* dispatch, Loop* irr_region) {
 	    _block_map[rpo] = blk;
 	    blk = blk->rpo_next();
 	  }
-	  //tty->print_cr("");
 	  assert(blk == nullptr, "should be done");
           for (int j = 0; j < block_ct; j++) {
 	    assert(_block_map[j] != nullptr, "must not drop any blocks");
