@@ -1616,6 +1616,7 @@ ciTypeFlow::Block::Block(ciTypeFlow* outer,
   _exc_klasses = nullptr;
   _successors = nullptr;
   _dispatchTargets = nullptr;
+  _irreducible_copy = false;
   _state = new (outer->arena()) StateVector(outer);
   JsrSet* new_jsrs =
     new (outer->arena()) JsrSet(outer->arena(), jsrs->size());
@@ -2921,6 +2922,26 @@ void ciTypeFlow::connect_dispatch_loop(Block* dispatch, Loop* irr_region) {
   irr_region->set_head(dispatch);
 }
 
+
+
+
+// ------------------------------------------------------------------
+	// ciTypeFlow::clone_block
+	//
+	// Clone block without predecessors
+	ciTypeFlow::Block* ciTypeFlow::clone_block(Block* blk) {
+	  assert(blk->has_pre_order(), "Non-visited nodes should not contribute to irreducibility");
+	  Block* clone = block_at(blk->start(), blk->jsrs(), create_deep_copy);
+	  clone->clone(blk);
+	  clone->set_irreducible_copy(true);
+	  clone->predecessors()->clear();
+	    for (int j = 0; j < clone->successors()->length(); ++j) {
+	      Block* succ = clone->successors()->at(j);
+	      succ->predecessors()->push(clone);
+	    }
+    return clone;
+	}
+
 // ------------------------------------------------------------------
 	// ciTypeFlow::clone_irreducible_block
 	//
@@ -2945,7 +2966,7 @@ void ciTypeFlow::connect_dispatch_loop(Block* dispatch, Loop* irr_region) {
 	      succ->predecessors()->push(clone);
 	      if (succ->predecessors()->contains(blk)) succ->predecessors()->remove(blk);
 	    }
-            if (_work_list == blk) _work_list = pred;
+      if (_work_list == blk) _work_list = pred;
 	    pred->set_next(clone);
  	  }
 	  //if (!blk->has_post_order()) blk->set_post_order(max_jint); //Temp rework this later...
@@ -2994,12 +3015,25 @@ void ciTypeFlow::connect_dispatch_loop(Block* dispatch, Loop* irr_region) {
 	    // Report irreducibility
 	    if(CIIrrFix){
 		    if (lp->head()->is_post_visited() && lp != loop_tree_root()){
-			    tty->print_cr("Found irreducible block %d", succ->pre_order());
-			    tty->print_cr("Found while traversing %d", blk->pre_order());
-			    tty->print_cr("Head of loop is %d", succ->loop()->head()->pre_order());
-			    tty->print_cr("Clone starts at: %d", lp->head()->start());
+			    if (CIIrrDebug) { 
+            tty->print_cr("Found irreducible block %d", succ->pre_order());
+            tty->print_cr("Found while traversing %d", blk->pre_order());
+            tty->print_cr("Head of loop is %d", succ->loop()->head()->pre_order());
+            tty->print_cr("Clone starts at: %d", lp->head()->start());
+          }
+          //if(irreducible == nullptr) irreducible = lp->head();
           
-          if(irreducible == nullptr) irreducible = lp->head();
+          // Now we want to make exactly one new block...
+          // Clone succ
+          Block* clone = clone_block(succ);
+          clone->predecessors()->push(blk);
+          blk->successors()->remove(succ);
+          blk->successors()->push(clone);
+          if (_work_list == succ) _work_list = blk;
+	        blk->set_next(clone); 
+          clone->set_pre_order(blk->pre_order());
+
+          irreducible = succ;
 	   	  }
 	    }
 	    
@@ -3262,7 +3296,7 @@ void ciTypeFlow::connect_dispatch_loop(Block* dispatch, Loop* irr_region) {
 	    }
 	   
 	    if(CIIrrDebug) print_blocks(tty);
-      if (CIIrrFix) clone_irreducible_block(irr_block); 
+      //if (CIIrrFix) clone_irreducible_block(irr_block); 
 	    reset_blocks(start);  
       //loop_tree_root()->set_child(nullptr);
 	    temp_vector = new StateVector(this);

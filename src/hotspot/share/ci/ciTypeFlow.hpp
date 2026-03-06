@@ -992,6 +992,7 @@ private:
 
   // Clone a block in a loop which causes irreducibility
   void clone_irreducible_block(Block* irr);
+  Block* clone_block(Block* blk);
 
 
   Block* add_dispatch(Loop* irreducible_region);
