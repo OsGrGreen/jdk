@@ -3226,7 +3226,33 @@ void ciTypeFlow::connect_dispatch_loop(Block* dispatch, Loop* irr_region) {
 	  Block* irr_block = df_flow_types(start, true /*do flow*/, temp_vector, temp_set, true);
     
     if (CIPrintLoops) {
-      Loop* lp = loop_tree_root(); 
+      GrowableArray<Loop*>* lp_queue = new (arena()) GrowableArray<Loop*>(arena(), 4, 0, nullptr);
+      lp_queue->push(loop_tree_root());
+
+      int num_loops = 0;
+      int totalt_depth = 0;
+      int max_depth = 0;
+      int loop_blk_cnt = 0;
+      int max_cnt = 0;
+
+      while(lp_queue->length() > 0) {
+        Loop* lp = lp_queue->pop();
+
+        //Do calculations
+        num_loops++;
+        totalt_depth += lp->depth();
+        max_depth = lp->depth() > max_depth ? lp->depth() : max_depth;
+        // Add sibling
+        if (lp->sibling() != nullptr) lp_queue->push(lp->sibling());
+        // Add child
+        if (lp->child() != nullptr) lp_queue->push(lp->child());
+
+      }
+
+      tty->print_cr("Totalt loops: %d", num_loops);
+      tty->print_cr("Total depth: %d / avg: %d", totalt_depth, num_loops > 0 ? totalt_depth / num_loops : 0);
+      tty->print_cr("Max depth: %d", max_depth);
+      tty->print_cr("Number of blocks: %d", loop_blk_cnt);
     }
 
     int i = 0;
