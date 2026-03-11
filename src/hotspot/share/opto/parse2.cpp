@@ -414,7 +414,7 @@ void Parse::do_dispatchswitch() {
   int greatest      = 0;
 
   block()->flow()->sort_dispatch();
-  
+  control()->set_req(0, control()); 
   //add_safepoint();
 
   for (int i = 0; i < len; ++i){
@@ -2066,7 +2066,6 @@ void Parse::do_one_bytecode() {
       ensure_phi(local, false);
       local++;
     }
-    tty->print_cr("Doing dispatch...");
     do_dispatchswitch();
     return;
   }

@@ -1588,7 +1588,8 @@ void Parse::do_one_block() {
     // Learn the current bci from the iterator:
     set_parse_bci(iter().cur_bci());
 
-    if (block()->flow()->is_dispatch() && CIDispatch){
+    // TODO possibly improve this??
+    if (bci() == 0 && block()->limit() == -1 && CIDispatch){
       //Add dispatcher switch
       // Add phi for predecessors, to determine successor
       // (how the hell do I determine successor (?)
@@ -1597,7 +1598,7 @@ void Parse::do_one_block() {
       //
       // We know where the original jump was supposed to go from the `target_bci`
       // If we can propogate this value and add a phi node in its place then maybe everything works out...
-
+      //tty->print_cr("Breaking because of dispatcher...");
       break;
     }
 
@@ -1626,13 +1627,14 @@ void Parse::do_one_block() {
     }
 
     NOT_PRODUCT( parse_histogram()->set_initial_state(bc()); );
-
+  
 #ifdef ASSERT
-    int pre_bc_sp = sp();
-    int inputs, depth;
-    bool have_se = !stopped() && compute_stack_effects(inputs, depth);
-    assert(!have_se || pre_bc_sp >= inputs, "have enough stack to execute this BC: pre_bc_sp=%d, inputs=%d", pre_bc_sp, inputs);
+      int pre_bc_sp = sp();
+      int inputs, depth;
+      bool have_se = !stopped() && compute_stack_effects(inputs, depth);
+      assert(block()->flow()->is_dispatch() || (!have_se || pre_bc_sp >= inputs), "have enough stack to execute this BC: pre_bc_sp=%d, inputs=%d, BCI:%d", pre_bc_sp, inputs, bci());
 #endif //ASSERT
+
 
     do_one_bytecode();
     if (failing()) return;
@@ -1883,6 +1885,9 @@ void Parse::merge_common(Parse::Block* target, int pnum) {
         if (n == top() && target->flow()->is_dispatch()){
           // In this case this safepoint does not use / update a value that the dispatcher must handle...
           // These cases will never happen in practice, however are needed since they can "theoretically" happen
+          
+          // Add throw away value here...
+
           phi->set_req(pnum, phi);
           continue; // try if a continue works (?)
         }

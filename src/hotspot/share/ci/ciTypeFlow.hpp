@@ -569,6 +569,7 @@ public:
 
     // Has this block been cloned to fix irreducibility?
     bool			     _irreducible_copy;
+    Block*                           _cloned_block;
     // This block is a loop head of an irreducible loop.
     bool                             _irreducible_loop_head;
 
@@ -628,6 +629,11 @@ public:
 
     bool    is_irreducible_copy() const    { return _irreducible_copy; }
     void   set_irreducible_copy(bool z)    { _irreducible_copy = z;    }
+    void    set_clone_block(Block* b)      { _cloned_block = b;        }
+    Block*  get_clone_block()     const    { 
+      assert(is_irreducible_copy(), "Only copied blocks have clones");
+      return _cloned_block;
+    }
 
     // access to entry state
     int     stack_size() const         { return _state->stack_size(); }
