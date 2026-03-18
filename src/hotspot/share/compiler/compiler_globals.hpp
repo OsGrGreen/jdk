@@ -68,6 +68,8 @@
           "print information about loops in the program")                   \
   develop(bool, CIIrrDebug, false, 					                                \
 	  "display more irreducibility debug information") 		                    \
+  develop(bool, CISplitSecond, false,                                       \
+    "Split the second and not the head")                                    \
   develop(bool, CIIrrFix, false,					                                  \
 	  "Fix irreducibility")						                                        \
   develop(bool, CIDispatch, false,                                          \
