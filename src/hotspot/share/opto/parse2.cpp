@@ -414,7 +414,17 @@ void Parse::do_dispatchswitch() {
   int greatest      = 0;
 
   block()->flow()->sort_dispatch();
-  control()->set_req(0, control()); 
+  
+  if (!control()->is_Region()){ 
+      RegionNode *r = new RegionNode(len+1);
+      gvn().set_type(r, Type::CONTROL);
+      record_for_igvn(r);
+      // zap all inputs to null for debugging (done in Node(uint) constructor)
+      // for (int j = 1; j < edges+1; j++) { r->init_req(j, nullptr); }
+      r->init_req(len, control());
+      set_control(r);
+  }
+  
   //add_safepoint();
 
   for (int i = 0; i < len; ++i){
@@ -431,7 +441,9 @@ void Parse::do_dispatchswitch() {
   }
   RegionNode *r = control()->as_Region();
   _gvn.set_type(jumpTarget, TypeInt::INT);  
-  
+ 
+  r->set_req(0, control()); 
+
   //Informaiton for the tableswitch
   int default_dest = greatest; // First successor...
  
