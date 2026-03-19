@@ -1646,7 +1646,6 @@ void ciTypeFlow::Block::df_init() {
 _pre_order = -1; assert(!has_pre_order(), "");
 _post_order = -1; assert(!has_post_order(), "");
 _loop = nullptr;
-set_irreducible_copy(false);
 _irreducible_loop_head = false;
 _irreducible_loop_secondary_entry = false;
 _rpo_next = nullptr;
@@ -2934,13 +2933,13 @@ void ciTypeFlow::connect_dispatch_loop(Block* dispatch, Loop* irr_region) {
 	// Clone block without predecessors
 	ciTypeFlow::Block* ciTypeFlow::clone_block(Block* blk) {
 	  assert(blk->has_pre_order(), "Non-visited nodes should not contribute to irreducibility");
-	  //if (blk->is_irreducible_copy()) return blk->get_clone_block();
+	  //if (blk->is_irreducible_copy() && blk->get_clone_block() != blk) return blk->get_clone_block();
     Block* clone = block_at(blk->start(), blk->jsrs(), create_deep_copy);
 	  clone->clone(blk);
 	  clone->set_irreducible_copy(true);
-	  blk->set_irreducible_copy(true);
-	  blk->set_clone_block(clone);
     clone->set_clone_block(blk);
+    //blk->set_irreducible_copy(true);
+	  //blk->set_clone_block(clone);
     clone->predecessors()->clear();
 	    for (int j = 0; j < clone->successors()->length(); ++j) {
 	      Block* succ = clone->successors()->at(j);
@@ -3072,6 +3071,12 @@ void ciTypeFlow::connect_dispatch_loop(Block* dispatch, Loop* irr_region) {
           if (second_count >= 1) {
             multi_succ = true;
           }
+
+          if (multi_head && multi_succ) {
+            if (succ->is_irreducible_copy() && succ->get_clone_block() != succ) {
+              multi_succ = false;
+            }
+          }
           if (multi_head && multi_succ) {
             
             Loop* clone_loop = irr_lp->depth() > sec_lp->depth() ? sec_lp : sec_lp;
@@ -3099,20 +3104,25 @@ void ciTypeFlow::connect_dispatch_loop(Block* dispatch, Loop* irr_region) {
             clone_queue->push(succ);
             // Find the looping predecessor of head (of `lp`) 
             clone_queue->push(irr_pred);
+
+            GrowableArray<Block*>* visited = new (arena()) GrowableArray<Block*>(arena(), 4, 0, nullptr);
+           
             // Clone entire loop
             assert(clone_loop->contains(succ), "The loop we clone must contain the second entry");
             while (clone_queue->length() > 1) {
-              tty->print_cr("Getting");
               Block* pred = clone_queue->pop();
               Block* clonee = clone_queue->pop();
-              if (clonee->is_irreducible_copy()) continue;
+             
+              tty->print_cr("Getting: %d", clonee->pre_order());
+
+              if (visited->contains(clonee)) continue;
               Block* clone = clone_block(clonee);
               if (clonee == succ) succ_copy = clone;
               if (pred->successors()->contains(clonee)) pred->successors()->remove(clonee);
               pred->successors()->push(clone);
               if (clonee->predecessors()->contains(pred)) clonee->predecessors()->remove(pred);
               clone->predecessors()->push(pred);
-              clone->set_pre_order(clonee->pre_order());
+              if (!clone->has_pre_order()) clone->set_pre_order(clonee->pre_order());
               pred->set_next(clone);
               clone->successors()->clear();
               // Add successors
@@ -3131,9 +3141,10 @@ void ciTypeFlow::connect_dispatch_loop(Block* dispatch, Loop* irr_region) {
                   next->predecessors()->push(clone);
                 }
               }
+              visited->push(clonee);
             }
             tty->print_cr("Cloned entire loop at: %d", succ->start());
-           
+            visited->clear_and_deallocate(); 
             clone_queue->clear_and_deallocate();
 
             return irreducible;
@@ -3153,7 +3164,7 @@ void ciTypeFlow::connect_dispatch_loop(Block* dispatch, Loop* irr_region) {
 
             blk->successors()->push(clone);
             blk->set_next(clone);  
-            clone->set_pre_order(succ->pre_order());
+            if (!clone->has_pre_order()) clone->set_pre_order(succ->pre_order());
  
             tty->print_cr("Cloned (succ): %d", lp->head()->start());
             irreducible = succ;
@@ -3178,7 +3189,8 @@ void ciTypeFlow::connect_dispatch_loop(Block* dispatch, Loop* irr_region) {
               }
             }
                
-            clone->set_pre_order(lp->head()->pre_order());
+            if (!clone->has_pre_order()) clone->set_pre_order(lp->head()->pre_order());
+            
             irreducible = lp->head();
             tty->print_cr("Cloned: %d", lp->head()->start());
             return irreducible;
