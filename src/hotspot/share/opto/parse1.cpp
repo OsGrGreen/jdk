@@ -1815,7 +1815,7 @@ void Parse::merge_common(Parse::Block* target, int pnum) {
    
     if (!control()->is_Region()) {
       tty->print_cr("Target is: %d and block is: %d", target->rpo(), block()->rpo());;
-      control()->dump_on(tty);
+      control()->dump();
     }
 
     assert(control()->is_Region(), "must be merging to a region");

@@ -419,20 +419,31 @@ void Parse::do_dispatchswitch() {
   int greatest      = 0;
   tty->print_cr("Number of preds are: %d", len);
   block()->flow()->sort_dispatch();
-  
-  RegionNode *r = new RegionNode(len+1);
-  gvn().set_type(r, Type::CONTROL);
-  record_for_igvn(r);
+
+  if (!control()->is_Region()) { 
+    RegionNode *r = new RegionNode(len+1);
+    r->set_req(1, control());
+    r->set_req(0, r);
+    gvn().set_type(r, Type::CONTROL);
+    record_for_igvn(r);
+    set_control(r);
+  }
+
+  RegionNode* r = control()->as_Region();
+
   // zap all inputs to null for debugging (done in Node(uint) constructor)
   // for (int j = 1; j < edges+1; j++) { r->init_req(j, nullptr); }
-  r->init_req(len, control());
-  set_control(r);
+  //r->init_req(len, control());
+  //set_control(r);
 
+  //for (int i = 0; i < len; i++) {
+   //r->init_req(i + 1, predecessor_control_for(i));
+  //}
  
-  r->set_req(0, control()); 
+  //r->set_req(0, control()); 
   Node* jumpTarget  = new PhiNode(r, TypeInt::INT);
   _gvn.set_type(jumpTarget, TypeInt::INT);  
-  
+  record_for_igvn(jumpTarget); 
   //add_safepoint();
 
   for (int i = 0; i < len; ++i){
@@ -442,21 +453,16 @@ void Parse::do_dispatchswitch() {
     _gvn.set_type(v, TypeInt::INT);  
     
     // These has to be added in predecessor RPO order
-    jumpTarget->set_req(i + 1, v);
+    jumpTarget->init_req(i + 1, v);
     if (targetBCI > greatest) {
 	    greatest = targetBCI;
     }
   }
 
+
   //Informaiton for the tableswitch
   int default_dest = greatest; // First successor...
  
-  if (len < 1) {
-    maybe_add_safepoint(default_dest);
-    // No effect on the operand stack... (possibly a pop-depending how the phinode works)...
-    merge(default_dest);
-    return;
-  }
 
   int unique = 0;
   intptr_t *targets = NEW_RESOURCE_ARRAY(intptr_t, len);
@@ -464,14 +470,7 @@ void Parse::do_dispatchswitch() {
      bool should_add = true;
      tty->print_cr("Getting possible candidate");
      int candidate = block()->flow()->dispatch()->at(i)->target();
-     tty->print_cr("Candidate is: %d, and rpo: %d, %d", candidate, block()->flow()->dispatch()->at(i)->rpo(), block()->flow()->dispatch()->at(i)->trgt()->rpo());
-     // In truth we know that there will only be two successors, so we want to save their `i` and their dest
-     /*for (int j = 0; j < i; ++j) {
-       int tmp = block()->flow()->dispatch()->at(j)->target();
-       if (candidate == tmp){
-	       should_add = false;
-       }
-     }*/
+     tty->print_cr("Target is: %d and source %d, and rpo: %d, %d", candidate, block()->flow()->dispatch()->at(i)->block()->start(), block()->flow()->dispatch()->at(i)->rpo(), block()->flow()->dispatch()->at(i)->trgt()->rpo());
      if (should_add)
      {
        targets[unique] = candidate;
@@ -511,12 +510,13 @@ void Parse::do_dispatchswitch() {
   if (highest != max_jint && !ranges[rp].adjoinRange(unique, max_jint, default_dest, cnt, trim_ranges)) {
     ranges[++rp].setRange(unique, max_jint, default_dest, cnt);
   }
+  Node* tmp = control();
   { PreserveJVMState pjvms(this);  
 	   
     jump_switch_ranges(jumpTarget, &ranges[0], &ranges[rp]);
   }
-  set_control(r);
   tty->print_cr("\t\t Done with dispatching");
+  set_control(tmp);
 }
 
 //-------------------------------do_tableswitch--------------------------------

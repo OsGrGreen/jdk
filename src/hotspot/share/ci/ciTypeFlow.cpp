@@ -2837,8 +2837,6 @@ ciTypeFlow::Block* ciTypeFlow::create_dispatch_block(ciTypeFlow::JsrSet* jsrs, L
 void ciTypeFlow::switch_blocks(Block* target, Block* source) {
   for (int i = 0; i < source->predecessors()->length(); ++i) {
     Block* pred = source->predecessors()->at(i);
-    // Don't redirect back-edges — only external entry edges
-    if (pred->pre_order() > source->pre_order()) continue; // back-edge, skip
     if (pred->successors()->contains(source)) {
       pred->successors()->remove(source);
     }
