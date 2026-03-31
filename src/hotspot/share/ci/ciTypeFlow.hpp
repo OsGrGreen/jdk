@@ -49,7 +49,6 @@ public:
   class Loop;
   class Block;
   class DispatchInfo;
-  class DispatchInfo;
 
   // Build a type flow analyzer
   // Do an OSR analysis if osr_bci >= 0.
@@ -527,11 +526,17 @@ public:
      private:
        int                          _target;
        Block*                       _src;
+       Block*                       _target_block;
      public:
-       DispatchInfo(int target, Block* src);
+       DispatchInfo(int target, Block* src, Block* trg);
 
        int rpo() const              { return _src->rpo(); }
        int target() const           { return _target; } 
+       Block* block() const         { return _src;   }
+       Block* trgt()   const        { return _target_block; }
+
+       void updateTarget(int new_target)   { _target = new_target; }
+
        static int compare(DispatchInfo** o1, DispatchInfo** o2) {
          DispatchInfo* a = *o1;
          DispatchInfo* b = *o2;
@@ -1018,6 +1023,12 @@ private:
 
   // Incrementally build loop tree.
   Block* build_loop_tree(Block* blk);
+  
+  // Fix all predecessor information.
+  // TODO: Remove dependency on this and make the build work from the beginning
+  void fix_predecessors();
+
+  void combine_dispatch(Block* main, Block* second);
 
   // Create the block map, which indexes blocks in pre_order.
   void map_blocks();

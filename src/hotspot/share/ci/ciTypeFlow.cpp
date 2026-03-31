@@ -1596,9 +1596,10 @@ if (_index < succ_ct) {
 // ------------------------------------------------------------------
 // ciTypeFlow::DispatchInfo::DispatchInfo
 
-ciTypeFlow::DispatchInfo::DispatchInfo(int target, Block* src) {
+ciTypeFlow::DispatchInfo::DispatchInfo(int target, Block* src, Block* trgt) {
 _target = target;
 _src = src;
+_target_block = trgt;
 }
 
 
@@ -2795,8 +2796,8 @@ ciTypeFlow::Block* ciTypeFlow::add_dispatch(Loop* lp) {
   if (lp == nullptr) {
     tty->print_cr("Loop does not exsist (?)");
   }
-  //assert(lp->is_irreducible(), "Must be irreducible to add dispatch block");
-  
+  assert(lp->is_irreducible(), "Must be irreducible to add dispatch block");
+  tty->print_cr("Adding dispatcher to the loop:");
 
   Block* dispatch = create_dispatch_block(lp->head()->jsrs(), lp);
   connect_dispatch_loop(dispatch, lp);
@@ -2836,16 +2837,15 @@ ciTypeFlow::Block* ciTypeFlow::create_dispatch_block(ciTypeFlow::JsrSet* jsrs, L
 void ciTypeFlow::switch_blocks(Block* target, Block* source) {
   for (int i = 0; i < source->predecessors()->length(); ++i) {
     Block* pred = source->predecessors()->at(i);
-    if (pred->successors()->contains(source)){
+    // Don't redirect back-edges — only external entry edges
+    if (pred->pre_order() > source->pre_order()) continue; // back-edge, skip
+    if (pred->successors()->contains(source)) {
       pred->successors()->remove(source);
     }
-    pred->successors()->push(target); 
+    pred->successors()->push(target);
     target->predecessors()->push(pred);
   }
-  //source->predecessors()->clear();
-  //if(source->has_successors()) source->successors()->clear();
 }
-
 
 void ciTypeFlow::connect_pred_dispatch(Block* dispatch, Block* source, Block* source2) {
   Arena* a = arena();
@@ -2855,11 +2855,11 @@ void ciTypeFlow::connect_pred_dispatch(Block* dispatch, Block* source, Block* so
   int added = 0;
   for (int i = 0; i < source->predecessors()->length(); ++i) {
     Block* pred = source->predecessors()->at(i);
-    dispatch->dispatch()->push(new(a) DispatchInfo(source->start(), pred)); 
+    dispatch->dispatch()->push(new(a) DispatchInfo(source->start(), pred, source)); 
   }
   for (int i = 0; i < source2->predecessors()->length(); ++i) {
     Block* pred = source2->predecessors()->at(i);
-    dispatch->dispatch()->push(new(a) DispatchInfo(source2->start(), pred)); 
+    dispatch->dispatch()->push(new(a) DispatchInfo(source2->start(), pred, source2)); 
   }
 
   /*
@@ -2981,6 +2981,82 @@ void ciTypeFlow::connect_dispatch_loop(Block* dispatch, Loop* irr_region) {
           blk->predecessors()->clear();
 	  //assert(blk->predecessors()->length() != 1, "Early return");
 	}
+
+
+  // ------------------------------------------------------------------
+  // ciTypeFlow::fix_predecessors
+  //
+  // Fix the predecessors after we have built dispatchers...
+
+  void ciTypeFlow::fix_predecessors() {
+    dump_dot_graph(); 
+    for (int i = 0; i < _method->get_method_blocks()->num_blocks(); ++i){
+      GrowableArray<Block*>* blocks = _idx_to_blocklist[i];
+      if (blocks == nullptr) continue;
+      for (int j = 0; j < blocks->length(); ++j){
+        Block* blk = blocks->at(j);
+        blk->predecessors()->clear();
+      } 
+    }
+
+
+    for (int i = 0; i < _method->get_method_blocks()->num_blocks(); ++i){
+      GrowableArray<Block*>* blocks = _idx_to_blocklist[i];
+      if (blocks == nullptr) continue;
+      for (int j = 0; j < blocks->length(); ++j){
+        // For each successor add me to its predecessor
+        Block* blk = blocks->at(j);
+        for (int k = 0; k < blk->successors()->length(); ++k) {
+          Block* succ = blk->successors()->at(k);
+          succ->predecessors()->append(blk);
+        }
+      } 
+    }
+
+    for (int i = 0; i < _method->get_method_blocks()->num_blocks(); ++i){
+      GrowableArray<Block*>* blocks = _idx_to_blocklist[i];
+      if (blocks == nullptr) continue;
+      for (int j = 0; j < blocks->length(); ++j) {
+        Block* blk = blocks->at(j);
+        if (!blk->is_dispatch()) continue;
+        GrowableArray<Block*>* to_combine = new (arena()) GrowableArray<Block*>(arena(), 1, 0, nullptr);
+        for (int k = 0; k < blk->successors()->length(); ++k) {
+          Block* succ = blk->successors()->at(k);
+          if (succ->is_dispatch() && succ->predecessors()->length() == 1) {
+            to_combine->push(succ);
+          }
+        }
+        for (int k = 0; k < to_combine->length(); ++k) {
+          combine_dispatch(blk, to_combine->at(k));
+        }
+      }    
+    }
+  }
+
+  void ciTypeFlow::combine_dispatch(Block* blk, Block* second) {
+    blk->successors()->remove(second);
+    for (int i = 0; i < second->successors()->length(); i++) {
+      Block* succ = second->successors()->at(i);
+      blk->successors()->append_if_missing(succ);
+      succ->predecessors()->append(blk);
+      if (succ->predecessors()->contains(second)) succ->predecessors()->remove(second);
+    }
+    
+
+    for (int i = 0; i < second->dispatch()->length(); i++){
+      blk->dispatch()->append_if_missing(second->dispatch()->at(i));
+    }
+    
+    for (int j = blk->dispatch()->length() - 1; j >= 0; j--) {
+        DispatchInfo* di = blk->dispatch()->at(j);
+        if (di->trgt()->is_dispatch()) {
+            blk->dispatch()->remove_at(j);
+        }
+    }
+
+    second->successors()->clear();
+    second->predecessors()->clear();
+  }
 
 	// ------------------------------------------------------------------
 	// ciTypeFlow::build_loop_tree
@@ -3265,6 +3341,8 @@ void ciTypeFlow::connect_dispatch_loop(Block* dispatch, Loop* irr_region) {
 	    innermost->def_locals()->add(blk->def_locals());
 	  }
 	  if (irreducible_loop != nullptr && _has_irreducible_entry && CIDispatch) {
+      tty->print_cr("Irreducible loop is: ");
+      irreducible_loop->print(tty);
 	    irreducible = add_dispatch(irreducible_loop);
 	  }
 
@@ -3505,7 +3583,7 @@ void ciTypeFlow::connect_dispatch_loop(Block* dispatch, Loop* irr_region) {
 	      // Probably that I make the things point at the wrong thing ?
         reset_blocks(start);
 	      df_flow_types(start, false /*no flow*/, temp_vector, temp_set, false);
-	    } else if (changed) {
+      } else if (changed) {
         loop_tree_root()->set_child(nullptr);
 	      for (Block* blk = _rpo_list; blk != nullptr;) {
           Block* next = blk->rpo_next();
@@ -3516,6 +3594,9 @@ void ciTypeFlow::connect_dispatch_loop(Block* dispatch, Loop* irr_region) {
 
       }
 	  }
+    if (CIDispatch) {
+      fix_predecessors(); 
+    }
 
 	  if (CITraceTypeFlow) {
 	    loop_tree_root()->print();
