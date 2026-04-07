@@ -1588,6 +1588,19 @@ void Parse::do_one_block() {
     // Learn the current bci from the iterator:
     set_parse_bci(iter().cur_bci());
 
+    // TODO possibly improve this??
+    if (bci() == 0 && block()->limit() == -1 && CIDispatch){
+      //Add dispatcher switch
+      // Add phi for predecessors, to determine successor
+      // (how the hell do I determine successor (?)
+      // I must save the original CFG or bytecode in some way
+      //
+      //
+      // We know where the original jump was supposed to go from the `target_bci`
+      // If we can propogate this value and add a phi node in its place then maybe everything works out...
+      //tty->print_cr("Breaking because of dispatcher...");
+      break;
+    }
 
     if (bci() == block()->limit()) {
       // Do not walk into the next block until directed by do_all_blocks.
@@ -1626,7 +1639,7 @@ void Parse::do_one_block() {
     do_one_bytecode();
     if (failing()) return;
     if (block()->flow()->is_dispatch()){
-      return;
+      break;
     }
 
     assert(!have_se || stopped() || failing() || (sp() - pre_bc_sp) == depth,
@@ -1772,13 +1785,11 @@ void Parse::merge_common(Parse::Block* target, int pnum) {
       set_parse_bci(current_bci); // Restore bci
     }
     tty->print_cr("Target is: %d", target->flow()->rpo());
-    tty->print_cr("Current state is:");
-    map()->dump();
     if(block() != nullptr) tty->print_cr("Flow is: %d", block()->flow()->rpo());
-    
     // Convert the existing Parser mapping into a mapping at this bci.
     store_state_to(target);
     assert(target->is_merged(), "do not come here twice");
+
   } else {                      // Prior mapping at this bci
     if (TraceOptoParse) {  tty->print(" with previous state"); }
 #ifdef ASSERT
@@ -1798,12 +1809,11 @@ void Parse::merge_common(Parse::Block* target, int pnum) {
     assert(newin->jvms()->stkoff() == jvms()->stkoff(), "JVMS layouts agree");
     assert(newin->jvms()->monoff() == jvms()->monoff(), "JVMS layouts agree");
     assert(newin->jvms()->endoff() == jvms()->endoff(), "JVMS layouts agree");
-    tty->print_cr("Got mapping");
+
     // Iterate over my current mapping and the old mapping.
     // Where different, insert Phi functions.
     // Use any existing Phi functions.
-    jvms()->dump();
-    control()->dump(); 
+   
     if (!control()->is_Region()) {
       tty->print_cr("Target is: %d and block is: %d", target->rpo(), block()->rpo());;
       control()->dump();
@@ -1812,13 +1822,9 @@ void Parse::merge_common(Parse::Block* target, int pnum) {
     assert(control()->is_Region(), "must be merging to a region");
     RegionNode* r = control()->as_Region();
 
-    tty->print_cr("Got control");
     // Compute where to merge into
     // Merge incoming control path
     r->init_req(pnum, newin->control());
-
-
-    tty->print_cr("Inserted control");
 
     if (pnum == 1) {            // Last merge for this Region?
       if (!block()->flow()->is_irreducible_loop_secondary_entry()) {
@@ -1830,8 +1836,7 @@ void Parse::merge_common(Parse::Block* target, int pnum) {
       record_for_igvn(r);
     }
 
-    tty->print_cr("Updateing mappings"); 
-
+    
     // Update all the non-control inputs to map:
     assert(TypeFunc::Parms == newin->jvms()->locoff(), "parser map should contain only youngest jvms");
     bool check_elide_phi = target->is_SEL_backedge(save_block);
@@ -1839,7 +1844,6 @@ void Parse::merge_common(Parse::Block* target, int pnum) {
     for (uint j = 1; j < newin->req(); j++) {
       Node* m = map()->in(j);   // Current state of target.
       Node* n = newin->in(j);   // Incoming change to target state.
-
       PhiNode* phi;
       if (m->is_Phi() && m->as_Phi()->region() == r)
         phi = m->as_Phi();
@@ -1851,16 +1855,13 @@ void Parse::merge_common(Parse::Block* target, int pnum) {
           // Frame pointer and Return Address never changes
           case TypeFunc::FramePtr:// Drop m, use the original value
           case TypeFunc::ReturnAdr:
-            tty->print_cr("FramePtr or ReturnAdr is different");
             break;
           case TypeFunc::Memory:  // Merge inputs to the MergeMem node
             assert(phi == nullptr, "the merge contains phis, not vice versa");
-            tty->print_cr("The merge is a merge of memory");
             merge_memory_edges(n->as_MergeMem(), pnum, nophi);
             continue;
           default:                // All normal stuff
             if (phi == nullptr) {
-              tty->print_cr("Merge with no pre-phi");
               const JVMState* jvms = map()->jvms();
               if (EliminateNestedLocks &&
                   jvms->is_mon(j) && jvms->is_monitor_box(j)) {
@@ -1884,14 +1885,12 @@ void Parse::merge_common(Parse::Block* target, int pnum) {
                 }
                 C->gvn_replace_by(n, m);
               } else if (!check_elide_phi || !target->can_elide_SEL_phi(j)) {
-                tty->print_cr("Merge with existing phi!");
                 phi = ensure_phi(j, nophi);
               }
             }
             break;
         }
       }
-      tty->print_cr("Updated mappings");
       // At this point, n might be top if:
       //  - there is no phi (because TypeFlow detected a conflict), or
       //  - the corresponding control edges is top (a dead incoming path)
@@ -1906,25 +1905,13 @@ void Parse::merge_common(Parse::Block* target, int pnum) {
           // Add throw away value here...
 
           phi->set_req(pnum, phi);
-
-          if (pnum == PhiNode::Input) {
-            // Last merge for this Phi.
-            // So far, Phis have had a reasonable type from ciTypeFlow.
-            // Now _gvn will join that with the meet of current inputs.
-            // BOTTOM is never permissible here, 'cause pessimistically
-            // Phis of pointers cannot lose the basic pointer type.
-            DEBUG_ONLY(const Type* bt1 = phi->bottom_type());
-            assert(bt1 != Type::BOTTOM, "should not be building conflict phis");
-            map()->set_req(j, _gvn.transform(phi));
-            DEBUG_ONLY(const Type* bt2 = phi->bottom_type());
-            assert(bt2->higher_equal_speculative(bt1), "must be consistent with type-flow");
-            record_for_igvn(phi);
-          }
-        }else{
+          continue; // try if a continue works (?)
+        }
         if (n == top()) {
-          tty->print_cr("Node is typ: %d", j);
+          tty->print_cr("Node is tyop");
           tty->print_cr("For: blk %d, target: %d, save_blk: %d", block()->rpo(), target->rpo(), save_block->rpo());
           m->dump();
+          n->dump();
         }
         if (r->in(pnum) != top()) {
           tty->print_cr("Region at end is not top :/");
@@ -1937,9 +1924,6 @@ void Parse::merge_common(Parse::Block* target, int pnum) {
             tty->print_cr("Old control is: ");
             save_r->dump();
           }
-          
-          newin->dump();
-          map()->dump();
         }
         assert(n != top() || r->in(pnum) == top(), "live value must not be garbage");
         assert(phi->region() == r, "");
@@ -1958,7 +1942,7 @@ void Parse::merge_common(Parse::Block* target, int pnum) {
           record_for_igvn(phi);
         }
       }
-     }
+
     } // End of for all values to be merged
 
     if (pnum == PhiNode::Input &&
@@ -2129,6 +2113,8 @@ PhiNode *Parse::ensure_phi(int idx, bool nocreate) {
   assert(region->is_Region(), "");
 
   Node* o = map->in(idx);
+  //tty->print_cr("Node:::: ");
+  //o->dump();
   assert(o != nullptr, "");
 
   if (o == top())  return nullptr; // TOP always merges into TOP
@@ -2141,8 +2127,6 @@ PhiNode *Parse::ensure_phi(int idx, bool nocreate) {
   assert(!nocreate, "Cannot build a phi for a block already parsed.");
   const JVMState* jvms = map->jvms();
   const Type* t = nullptr;
-  tty->print_cr("IDX is: %d", idx);
-  jvms->dump();
   if (jvms->is_loc(idx)) {
     t = block()->local_type_at(idx - jvms->locoff());
   } else if (jvms->is_stk(idx)) {

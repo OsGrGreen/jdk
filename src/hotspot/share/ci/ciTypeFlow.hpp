@@ -478,6 +478,9 @@ public:
     // one.  Returns true if any modification takes place.
     bool meet(const StateVector* incoming);
 
+
+    void meet_dispatcher(const StateVector* incoming);
+
     // Ditto, except that the incoming state is coming from an exception.
     bool meet_exception(ciInstanceKlass* exc, const StateVector* incoming);
 
@@ -630,7 +633,9 @@ public:
     void   set_backedge_copy(bool z);
     int        backedge_copy_count() const { return outer()->backedge_copy_count(ciblock()->index(), _jsrs); }
     void    new_target(GrowableArray<DispatchInfo*>* newTarget)   {_dispatchTargets = newTarget; } 
-
+    
+    void   meet_block(Block* blk)          { blk->meet_dispatch(state()); }
+    void   meet_dispatch(StateVector* incoming) {state()->meet_dispatcher(incoming); }
 
     bool    is_irreducible_copy() const    { return _irreducible_copy; }
     void   set_irreducible_copy(bool z)    { _irreducible_copy = z;    }
@@ -1029,6 +1034,8 @@ private:
   void fix_predecessors();
 
   void combine_dispatch(Block* main, Block* second);
+
+  void split_dispatch_by_stack(Block* dispatch);
 
   // Create the block map, which indexes blocks in pre_order.
   void map_blocks();

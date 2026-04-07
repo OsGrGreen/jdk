@@ -411,6 +411,8 @@ void Parse::do_dispatchswitch() {
   
   tty->print_cr("Doing dispatch!");
   tty->print_cr("Current block is: %d", block()->flow()->rpo());
+  control()->dump();
+  map()->dump();
   // Add phi-node
   int len           = block()->flow()->dispatch()->length(); //block()->flow()->predecessors()->length();
   for (int i = 0; i < block()->flow()->predecessors()->length(); i++) {
@@ -428,7 +430,6 @@ void Parse::do_dispatchswitch() {
     record_for_igvn(r);
     set_control(r);
   }
-
   RegionNode* r = control()->as_Region();
 
   // zap all inputs to null for debugging (done in Node(uint) constructor)
@@ -510,13 +511,12 @@ void Parse::do_dispatchswitch() {
   if (highest != max_jint && !ranges[rp].adjoinRange(unique, max_jint, default_dest, cnt, trim_ranges)) {
     ranges[++rp].setRange(unique, max_jint, default_dest, cnt);
   }
-  Node* tmp = control();
-  { PreserveJVMState pjvms(this);  
-	   
-    jump_switch_ranges(jumpTarget, &ranges[0], &ranges[rp]);
-  }
+  //{ PreserveJVMState pjvms(this);  
+	//store_state_to(block());   
+  jump_switch_ranges(jumpTarget, &ranges[0], &ranges[rp]);
+  //}
   tty->print_cr("\t\t Done with dispatching");
-  set_control(tmp);
+  //set_control(tmp);
 }
 
 //-------------------------------do_tableswitch--------------------------------
@@ -2079,12 +2079,13 @@ void Parse::do_one_bytecode() {
        // Add phi for predecessors, to determine successor
        // How do I determine the order of successors (should be RPO)
     // Here we must change all inputs to the map to be a phi if they are not already a phi-node...
-    
-    int local = jvms()->locoff();
-    while(jvms()->is_loc(local)){
-      ensure_phi(local, false);
-      local++;
-    }
+    tty->print_cr("Prining dispatch map()");
+    map()->dump(); 
+    //int local = jvms()->locoff();
+    //while(jvms()->is_loc(local)){
+      //ensure_phi(local, false);
+      //local++;
+    //}
     do_dispatchswitch();
     return;
   }

@@ -250,6 +250,7 @@ st->print("}");
 }
 #endif
 
+
 // ciTypeFlow::StateVector
 //
 // A StateVector summarizes the type information at some point in
@@ -480,6 +481,23 @@ for (Cell c = start_cell(); c < limit; c = next_cell(c)) {
   }
 }
 return different;
+}
+
+void ciTypeFlow::StateVector::meet_dispatcher(const ciTypeFlow::StateVector* incoming) {
+  Cell limit = limit_cell();
+  for (Cell c = start_cell(); c < limit; c = next_cell(c)) {
+    ciType* t1 = type_at(c);
+    ciType* t2 = incoming->type_at(c);
+    t1->print_name();
+    t2->print_name();
+    if (!t1->equals(t2)) {
+      ciType* new_type = type_meet(t1, t2);
+      if (!t1->equals(new_type)) {
+        tty->print_cr("Set to new type!");
+        set_type_at(c, new_type);
+      }
+    }
+  }
 }
 
 // ------------------------------------------------------------------
@@ -3029,7 +3047,28 @@ void ciTypeFlow::connect_dispatch_loop(Block* dispatch, Loop* irr_region) {
         }
       }    
     }
+
+    for (int i = 0; i < _method->get_method_blocks()->num_blocks(); ++i){
+      GrowableArray<Block*>* blocks = _idx_to_blocklist[i];
+      if (blocks == nullptr) continue;
+      for (int j = 0; j < blocks->length(); ++j) {
+        Block* blk = blocks->at(j);
+        if (!blk->is_dispatch()) continue;
+        split_dispatch_by_stack(blk);
+      }    
+    }
   }
+
+
+//TODO: rename
+void ciTypeFlow::split_dispatch_by_stack(Block* dispatch) {
+    
+    for (int i = 0; i < dispatch->successors()->length(); i++) {
+        Block* succ = dispatch->successors()->at(i);
+        tty->print_cr("Meeting block: %d with dispatcher", succ->pre_order());
+        dispatch->def_locals()->add(succ->def_locals());
+    }
+}
 
   void ciTypeFlow::combine_dispatch(Block* blk, Block* second) {
     blk->successors()->remove(second);
