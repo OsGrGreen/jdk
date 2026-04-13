@@ -263,7 +263,7 @@ class Parse : public GraphKit {
     // Call this just before parsing a block.
     void mark_parsed() {
       assert(!_is_parsed, "must parse each block exactly once");
-      tty->print_cr("Marking %d as parsed", rpo());
+      //tty->print_cr("Marking %d as parsed", rpo());
       _is_parsed = true;
     }
 

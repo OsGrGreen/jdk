@@ -493,7 +493,7 @@ void ciTypeFlow::StateVector::meet_dispatcher(const ciTypeFlow::StateVector* inc
     if (!t1->equals(t2)) {
       ciType* new_type = type_meet(t1, t2);
       if (!t1->equals(new_type)) {
-        tty->print_cr("Set to new type!");
+        //tty->print_cr("Set to new type!");
         set_type_at(c, new_type);
       }
     }
@@ -3191,7 +3191,7 @@ void ciTypeFlow::split_dispatch_by_stack(Block* dispatch) {
             }
           }
           if (multi_head && multi_succ) {
-            
+            tty->print_cr("Cloning entire loop"); 
             Loop* clone_loop = irr_lp->depth() > sec_lp->depth() ? sec_lp : sec_lp;
 
             GrowableArray<Block*>* clone_queue = new (arena()) GrowableArray<Block*>(arena(), 4, 0, nullptr);
@@ -3226,7 +3226,7 @@ void ciTypeFlow::split_dispatch_by_stack(Block* dispatch) {
               Block* pred = clone_queue->pop();
               Block* clonee = clone_queue->pop();
              
-              tty->print_cr("Getting: %d", clonee->pre_order());
+              //tty->print_cr("Getting: %d", clonee->pre_order());
 
               if (visited->contains(clonee)) continue;
               Block* clone = clone_block(clonee);
@@ -3241,9 +3241,9 @@ void ciTypeFlow::split_dispatch_by_stack(Block* dispatch) {
               // Add successors
               for (SuccIter iter(clonee); !iter.done(); iter.next()) {
                 Block* next = iter.succ();
-                tty->print_cr("Next is: %d", next->pre_order());
+                // tty->print_cr("Next is: %d", next->pre_order());
                 if (clone_loop->contains(next) && next != succ) {
-                  tty->print_cr("Pushing");
+                  // tty->print_cr("Pushing");
                   clone_queue->push(next);
                   clone_queue->push(clone);
                 } else if (next == succ) {
@@ -3256,7 +3256,7 @@ void ciTypeFlow::split_dispatch_by_stack(Block* dispatch) {
               }
               visited->push(clonee);
             }
-            tty->print_cr("Cloned entire loop at: %d", succ->start());
+            // tty->print_cr("Cloned entire loop at: %d", succ->start());
             visited->clear_and_deallocate(); 
             clone_queue->clear_and_deallocate();
 
@@ -3267,6 +3267,8 @@ void ciTypeFlow::split_dispatch_by_stack(Block* dispatch) {
             if (blk->successors()->contains(succ)) blk->successors()->remove(succ);
             if (succ->predecessors()->contains(blk)) succ->predecessors()->remove(blk);
             
+
+            tty->print_cr("Cloning succ loop %d", succ->pre_order()); 
 
             if (clone->successors()->contains(succ)) {
               clone->successors()->remove(succ);
@@ -3279,7 +3281,7 @@ void ciTypeFlow::split_dispatch_by_stack(Block* dispatch) {
             blk->set_next(clone);  
             if (!clone->has_pre_order()) clone->set_pre_order(succ->pre_order());
  
-            tty->print_cr("Cloned (succ): %d", lp->head()->start());
+            //tty->print_cr("Cloned (succ): %d", lp->head()->start());
             irreducible = succ;
             return irreducible;
           if(succ->has_post_order()) clone->set_post_order(succ->post_order());
@@ -3288,7 +3290,9 @@ void ciTypeFlow::split_dispatch_by_stack(Block* dispatch) {
             clone->predecessors()->push(lp->tail());
             if (lp->tail()->successors()->contains(lp->head())) lp->tail()->successors()->remove(lp->head());
             if (lp->head()->predecessors()->contains(lp->tail())) lp->head()->predecessors()->remove(lp->tail());
-            
+
+            tty->print_cr("Cloning head loop %d", lp->head()->pre_order()); 
+           
             // For all loops this is a header of connect tail to clone.
 
             lp->tail()->successors()->push(clone);
@@ -3305,7 +3309,7 @@ void ciTypeFlow::split_dispatch_by_stack(Block* dispatch) {
             if (!clone->has_pre_order()) clone->set_pre_order(lp->head()->pre_order());
             
             irreducible = lp->head();
-            tty->print_cr("Cloned: %d", lp->head()->start());
+            // tty->print_cr("Cloned: %d", lp->head()->start());
             return irreducible;
           }
 
@@ -3378,7 +3382,7 @@ void ciTypeFlow::split_dispatch_by_stack(Block* dispatch) {
 	    innermost->def_locals()->add(blk->def_locals());
 	  }
 	  if (irreducible_loop != nullptr && _has_irreducible_entry && CIDispatch) {
-      tty->print_cr("Irreducible loop is: ");
+      // tty->print_cr("Irreducible loop is: ");
       irreducible_loop->print(tty);
 	    irreducible = add_dispatch(irreducible_loop);
 	  }
@@ -3599,7 +3603,7 @@ void ciTypeFlow::split_dispatch_by_stack(Block* dispatch) {
       }
 	  }
 	  if (i != 0) {
-      tty->print_cr("Done with node splitting");
+      // tty->print_cr("Done with node splitting");
       dump_dot_graph();
       return; // Early return ... The final steps break the graph for some reason
 	  }
