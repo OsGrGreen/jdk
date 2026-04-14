@@ -3289,7 +3289,7 @@ void ciTypeFlow::connect_dispatch_loop(Block* dispatch, Loop* irr_region) {
 	      
         if (!plp->head()->is_post_visited() || plp == nullptr || plp == loop_tree_root()){
           // Here we also want to break when the second entry no longer is part of the loop...
-          if(CIDispatch){
+          if(CIDispatch && !is_osr_flow()){
              irreducible_loop = lp;
              _has_irreducible_entry = true;
              lp->set_irreducible(succ);
@@ -3338,7 +3338,7 @@ void ciTypeFlow::connect_dispatch_loop(Block* dispatch, Loop* irr_region) {
 	    blk->set_loop(innermost);
 	    innermost->def_locals()->add(blk->def_locals());
 	  }
-	  if (irreducible_loop != nullptr && _has_irreducible_entry && CIDispatch) {
+	  if (irreducible_loop != nullptr && _has_irreducible_entry && CIDispatch && !is_osr_flow()) {
       tty->print_cr("Irreducible loop is: ");
       irreducible_loop->print(tty);
 	    irreducible = add_dispatch(irreducible_loop);
@@ -3460,7 +3460,7 @@ void ciTypeFlow::connect_dispatch_loop(Block* dispatch, Loop* irr_region) {
                 return irreducible;
               }
             }
-            if (CIDispatch && irreducible_block != nullptr){
+            if (CIDispatch && !is_osr_flow() && irreducible_block != nullptr){
               // Do something here to manipulate the post orders..
               irreducible_block->set_post_order(next_po++);
               // If we have created a dispatch block then make sure to add the new successors to the worklist in the correct order
@@ -3573,7 +3573,7 @@ void ciTypeFlow::connect_dispatch_loop(Block* dispatch, Loop* irr_region) {
 	      // Loop optimizations are not performed on Tier1 compiles.
 	    bool changed = clone_loop_heads(temp_vector, temp_set);
 	    // If some loop heads were cloned, recompute postorder and loop tree
-	    if (changed && CIDispatch && irr_block != nullptr) { 
+	    if (changed && CIDispatch && !is_osr_flow() && irr_block != nullptr) { 
         temp_vector = new StateVector(this);
 	      temp_set    = new JsrSet(4);
 
@@ -3592,7 +3592,7 @@ void ciTypeFlow::connect_dispatch_loop(Block* dispatch, Loop* irr_region) {
 
       }
 	  }
-    if (CIDispatch) {
+    if (CIDispatch && !is_osr_flow()) {
       fix_predecessors(); 
     }
 

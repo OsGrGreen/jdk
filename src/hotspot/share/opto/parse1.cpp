@@ -1694,14 +1694,10 @@ void Parse::merge(int target_bci) {
 //-------------------------merge_new_path--------------------------------------
 // Merge the current mapping into the basic block, using a new path
 void Parse::merge_new_path(int target_bci) {
-  tty->print_cr("Merging %d", target_bci);
   Block* target = successor_for_bci(target_bci);
-  tty->print_cr("Got target");
   if (target == nullptr) { handle_missing_successor(target_bci); return; }
   assert(!target->is_ready(), "new path into frozen graph");
-  tty->print_cr("Add new path");
   int pnum = target->add_new_path();
-  tty->print_cr("Got new path: %d", pnum);
   merge_common(target, pnum);
 }
 
@@ -1784,8 +1780,6 @@ void Parse::merge_common(Parse::Block* target, int pnum) {
       target->copy_irreducible_status_to(r, jvms());
       set_parse_bci(current_bci); // Restore bci
     }
-    tty->print_cr("Target is: %d", target->flow()->rpo());
-    if(block() != nullptr) tty->print_cr("Flow is: %d", block()->flow()->rpo());
     // Convert the existing Parser mapping into a mapping at this bci.
     store_state_to(target);
     assert(target->is_merged(), "do not come here twice");
@@ -1799,7 +1793,6 @@ void Parse::merge_common(Parse::Block* target, int pnum) {
 #endif
     // We must not manufacture more phis if the target is already parsed.
     bool nophi = target->is_parsed();
-    tty->print_cr("nophiu %d", nophi);
     nophi = target->is_parsed() && !target->flow()->is_dispatch();
     SafePointNode* newin = map();// Hang on to incoming mapping
     Block* save_block = block(); // Hang on to incoming block;
@@ -1839,7 +1832,6 @@ void Parse::merge_common(Parse::Block* target, int pnum) {
     // Update all the non-control inputs to map:
     assert(TypeFunc::Parms == newin->jvms()->locoff(), "parser map should contain only youngest jvms");
     bool check_elide_phi = target->is_SEL_backedge(save_block);
-    tty->print_cr("check elide phi: %d", check_elide_phi); 
     for (uint j = 1; j < newin->req(); j++) {
       Node* m = map()->in(j);   // Current state of target.
       Node* n = newin->in(j);   // Incoming change to target state.
