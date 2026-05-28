@@ -694,7 +694,6 @@ Node* PhaseGVN::transform(Node* n) {
 
   // If brand new node, make space in type array.
   ensure_type_or_null(k);
-
   // Since I just called 'Value' to compute the set of run-time values
   // for this Node, and 'Value' is non-local (and therefore expensive) I'll
   // cache Value.  Later requests for the local phase->type of this Node can
@@ -723,6 +722,8 @@ Node* PhaseGVN::transform(Node* n) {
   i = k->Identity(this);        // Look for a nearby replacement
   if (i != k) {                 // Found? Return replacement!
     NOT_PRODUCT(set_progress();)
+   
+
     return i;
   }
 

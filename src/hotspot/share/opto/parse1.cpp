@@ -686,6 +686,40 @@ void Parse::do_all_blocks() {
       NOT_PRODUCT(blocks_parsed++);
 
       progress = true;
+      if (block->flow()->is_dispatch() && !block->is_parsed()) {
+        RegionNode* r = control()->as_Region();
+          r->set_req(0, r);
+          gvn().set_type(r, Type::CONTROL);
+          record_for_igvn(r);
+	  for (uint idx = TypeFunc::Parms; idx < map()->req(); idx++) {
+	    Node* o = map()->in(idx);
+
+	    const JVMState* jvms = map()->jvms();
+	    const Type* t = nullptr;
+	    if (jvms->is_loc(idx)) {
+              tty->print_cr("Getting local type at: %d", idx - jvms->locoff());
+	      ciType* ct = block->flow()->local_type_at(idx - jvms->locoff());
+              t = Block::get_type(ct);
+	    } else if (jvms->is_stk(idx)) {
+		continue;		       
+//t = block->stack_type_at(idx - jvms->stkoff());
+	    } else {
+	      continue; // monitors etc., skip
+	    }
+	    tty->print_cr("The type of %d is %s", idx, Type::str(t));
+	    if (t == nullptr || t == Type::TOP || t == Type::HALF || t == Type::BOTTOM)
+		{
+                tty->print_cr("CITYPEFLOW SAYS DEAD! for: %d", idx); 
+		continue;
+		}
+
+	   PhiNode* phi = PhiNode::make(r, o, t); 
+	    gvn().set_type(phi, t);
+	    record_for_igvn(phi);
+	    map()->set_req(idx, phi);
+	  }
+      } 
+      
       if (block->is_loop_head() || block->is_handler() || (has_irreducible && !block->is_ready())) {
         // Not all preds have been parsed.  We must build phis everywhere.
         // (Note that dead locals do not get phis built, ever.)
@@ -1893,8 +1927,10 @@ void Parse::merge_common(Parse::Block* target, int pnum) {
           // These cases will never happen in practice, however are needed since they can "theoretically" happen
           
           // Add throw away value here...
-
+	  tty->print_cr("Block merge phi has too few inputs");
+	  phi->dump();
           phi->set_req(pnum, phi);
+          phi->dump();
           continue; // try if a continue works (?)
         }
         assert(n != top() || r->in(pnum) == top(), "live value must not be garbage");
@@ -2088,7 +2124,7 @@ PhiNode *Parse::ensure_phi(int idx, bool nocreate) {
   //tty->print_cr("Node:::: ");
   //o->dump();
   assert(o != nullptr, "");
-
+  
   if (o == top())  return nullptr; // TOP always merges into TOP
 
   if (o->is_Phi() && o->as_Phi()->region() == region) {

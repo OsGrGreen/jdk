@@ -408,7 +408,7 @@ static void merge_ranges(SwitchRange* ranges, int& rp) {
 }
 
 void Parse::do_dispatchswitch() {
-  
+   
   tty->print_cr("Doing dispatch!");
   tty->print_cr("Current block is: %d", block()->flow()->rpo());
   // Add phi-node
@@ -430,7 +430,7 @@ void Parse::do_dispatchswitch() {
   }
 
   RegionNode* r = control()->as_Region();
-
+  r->set_req(0, r);
   // zap all inputs to null for debugging (done in Node(uint) constructor)
   // for (int j = 1; j < edges+1; j++) { r->init_req(j, nullptr); }
   //r->init_req(len, control());
@@ -445,11 +445,37 @@ void Parse::do_dispatchswitch() {
   _gvn.set_type(jumpTarget, TypeInt::INT);  
   record_for_igvn(jumpTarget); 
   //add_safepoint();
+  
+  // Find all unique targets... We do not need to have more unique numbers than targets.
 
+  // Instead of adding i we create a mapping between target and i, such that all with the same target get the same i.
+
+  // Then we can slightly simplify our jump/dispatching
+ 
+
+  intptr_t *unique_ids = NEW_RESOURCE_ARRAY(intptr_t, len);
+  int unique_length = 0; 
+  for (int i = 0; i < len; ++i) {
+    unique_ids[i] = -1;
+  }
+  int unused = -1;
   for (int i = 0; i < len; ++i){
     int targetBCI = block()->flow()->dispatch()->at(i)->target();
     //tty->print_cr("Target: %d, from RPO: %d", targetBCI, block()->flow()->dispatch()->at(i)->rpo());
-    Node* v = new ConINode(TypeInt::make(i));
+    int val = unused + 1;
+    int empty = 0;
+    for (int j = 0; j < len; ++j) {
+      int v = unique_ids[j];
+      if (v == -1) break;
+      empty++;
+      if (v == targetBCI) {
+        tty->print_cr("Found bci: %d at: %d", targetBCI, j);
+        val = j;
+        empty = -1;
+        break;
+      } 
+    }
+    Node* v = new ConINode(TypeInt::make(val));
     _gvn.set_type(v, TypeInt::INT);  
     
     // These has to be added in predecessor RPO order
@@ -457,6 +483,12 @@ void Parse::do_dispatchswitch() {
     if (targetBCI > greatest) {
 	    greatest = targetBCI;
     }
+    if (empty != -1) {
+      tty->print_cr("Setting %d to bci: %d", empty, targetBCI);
+      unique_ids[empty] = targetBCI;
+      unique_length += 1;
+    }
+    unused = val > unused ? val: unused;
   }
 
 
@@ -466,10 +498,10 @@ void Parse::do_dispatchswitch() {
 
   int unique = 0;
   intptr_t *targets = NEW_RESOURCE_ARRAY(intptr_t, len);
-  for (int i = 0; i < len; ++i) {
+  for (int i = 0; i < unique_length; ++i) {
      bool should_add = true;
      tty->print_cr("Getting possible candidate");
-     int candidate = block()->flow()->dispatch()->at(i)->target();
+     int candidate = unique_ids[i];
      tty->print_cr("Target is: %d and source %d, and rpo: %d, %d", candidate, block()->flow()->dispatch()->at(i)->block()->start(), block()->flow()->dispatch()->at(i)->rpo(), block()->flow()->dispatch()->at(i)->trgt()->rpo());
      if (should_add)
      {
@@ -2079,12 +2111,35 @@ void Parse::do_one_bytecode() {
        // Add phi for predecessors, to determine successor
        // How do I determine the order of successors (should be RPO)
     // Here we must change all inputs to the map to be a phi if they are not already a phi-node...
-    
-    int local = jvms()->locoff();
-    while(jvms()->is_loc(local)){
-      ensure_phi(local, false);
-      local++;
-    }
+   
+	/*int local = jvms()->locoff();
+	while (jvms()->is_loc(local) && false) {
+	    Node* o = map()->in(local);
+	    if (o != nullptr && o != top()) {
+		Node* region = map()->control();
+		assert(region->is_Region(), "must have region for dispatch");
+		if (!o->is_Phi() || o->as_Phi()->region() != region->as_Region()) {
+		    const Type* t = block()->local_type_at(local - jvms()->locoff());
+		    
+		    if (t != nullptr && t != Type::TOP && t != Type::HALF && t != Type::BOTTOM) {
+			PhiNode* phi = PhiNode::make(region->as_Region(), o, t);
+			// CRITICAL: Initialize phi inputs to top() to prevent premature constant folding
+			for (uint i = 1; i < region->as_Region()->req(); i++) {
+			    phi->init_req(i, top());
+			}
+			// Don't set_type explicitly - let GVN compute from top() inputs
+			gvn().set_type(phi, t);
+			record_for_igvn(phi);
+			map()->set_req(local, phi);
+		    } else {
+			// Typeflow says this slot is dead - set to top()
+			tty->print_cr("Slot %d dead according to typeflow", local);
+			map()->set_req(local, top());
+		    }
+		}
+	    }
+	    local++;
+	}*/ 
     do_dispatchswitch();
     return;
   }
@@ -2773,7 +2828,7 @@ void Parse::do_one_bytecode() {
 
   case Bytecodes::_iinc:        // Increment local
     i = iter().get_index();     // Get local index
-    set_local( i, _gvn.transform( new AddINode( _gvn.intcon(iter().get_iinc_con()), local(i) ) ) );
+    set_local( i, _gvn.transform( new AddINode( _gvn.intcon(iter().get_iinc_con()), local(i))));
     break;
 
   // Exit points of synchronized methods must have an unlock node

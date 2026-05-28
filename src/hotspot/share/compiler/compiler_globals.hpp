@@ -134,6 +134,8 @@
                                                                             \
   develop(intx, CIBreakAt, -1,                                              \
           "The id of compilation to break at")                              \
+  develop(bool, CountOpts, false,                                           \
+	  "Determines if the number of optimizations should be counted")    \
                                                                             \
   /* recompilation */                                                       \
                                                                             \

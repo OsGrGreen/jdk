@@ -1617,6 +1617,8 @@ _ciblock = ciblk;
 _exceptions = nullptr;
 _exc_klasses = nullptr;
 _successors = nullptr;
+_is_reachable = true;
+_is_dispatch_target = false;
 _dispatchTargets = nullptr;
 _irreducible_copy = false;
 _state = new (outer->arena()) StateVector(outer);
@@ -2293,11 +2295,6 @@ bool ciTypeFlow::clone_loop_heads(StateVector* temp_vector, JsrSet* temp_set) {
   for (PreorderLoops iter(loop_tree_root()); !iter.done(); iter.next()) {
     Loop* lp = iter.current();
     Block* head = lp->head();
-    if (head->is_dispatch()) {
-      rslt = true;
-      //continue;
-      return true;
-    }
     if (lp == loop_tree_root() ||
         lp->is_irreducible() ||
         !head->is_clonable_exit(lp))
@@ -2449,9 +2446,6 @@ void ciTypeFlow::flow_block(ciTypeFlow::Block* block,
     block->print_on(tty);
   }
   assert(block->has_pre_order(), "pre-order is assigned before 1st flow");
-  if (block->is_dispatch()){
-    return; //If this is a dispatch block it has no effects...
-  }
   int start = block->start();
   int limit = block->limit();
   int control = block->control();
@@ -2579,7 +2573,7 @@ int ciTypeFlow::Loop::profiled_count() {
   }
   // TODO: Improve this!!!
   if (head()->is_dispatch()){
-    return 0;
+    return 1;
   }
 
   ciMethodData* methodData = outer()->method()->method_data();
@@ -2798,7 +2792,6 @@ ciTypeFlow::Block* ciTypeFlow::add_dispatch(Loop* lp) {
   }
   assert(lp->is_irreducible(), "Must be irreducible to add dispatch block");
   tty->print_cr("Adding dispatcher to the loop:");
-
   Block* dispatch = create_dispatch_block(lp->head()->jsrs(), lp);
   connect_dispatch_loop(dispatch, lp);
   lp->reset_irreducible();
@@ -2811,7 +2804,7 @@ ciTypeFlow::Block* ciTypeFlow::add_dispatch(Loop* lp) {
     lp->reset_irreducible();
   }
   _has_irreducible_entry = false;
-  //dump_dot_graph();
+  dump_dot_graph();
   //print_blocks(tty);
   //Here we must change the pre-order of all current nodes...
   return dispatch;
@@ -2896,14 +2889,20 @@ void ciTypeFlow::connect_dispatch_loop(Block* dispatch, Loop* irr_region) {
 
 
   Block* entry = irr_region->head();
-  StateVector* state = new StateVector(this);
   Block* tmp = entry->next();
   entry->set_next(dispatch);
   dispatch->set_next(tmp);
+
+  StateVector* state = new StateVector(this);
   entry->copy_state_into(state);
-  dispatch->meet(state);
+  dispatch->meet(state);  
 
   Block* second_entry = irr_region->second_entry();
+ 
+  StateVector* state2 = new StateVector(this);
+  second_entry->copy_state_into(state2);
+  dispatch->meet(state2);  
+
   connect_pred_dispatch(dispatch, entry, second_entry);
   
   switch_blocks(dispatch, entry); 
@@ -2980,6 +2979,37 @@ void ciTypeFlow::connect_dispatch_loop(Block* dispatch, Loop* irr_region) {
 	  //assert(blk->predecessors()->length() != 1, "Early return");
 	}
 
+void ciTypeFlow::split_dispatch_by_stack(Block* dispatch) {
+  StateVector* merged = new StateVector(this);
+  for (int i = 0; i < dispatch->successors()->length(); i++) {
+    Block* succ = dispatch->successors()->at(i);
+    dispatch->def_locals()->add(succ->def_locals());
+  }
+  // Also add predecessor def_locals so live-in locals are tracked
+  int greatest = 0;
+  for (int i = 0; i < dispatch->predecessors()->length(); i++) {
+    Block* pred = dispatch->predecessors()->at(i);
+    if (greatest < pred->stack_size()) {
+      greatest = pred->stack_size();
+      pred->copy_state_into(merged);
+    }
+    dispatch->def_locals()->add(pred->def_locals());
+  }
+  //StateVector* old = new StateVector(this);
+  //dispatch->copy_state_into(old);
+  //old->set_stack_size(greatest);
+  //old->meet(merged);
+  //dispatch->meet(merged);
+
+tty->print_cr("=== ciTypeFlow state of dispatch block ===");
+tty->print_cr("Stack height is: %d", dispatch->stack_size());
+tty->print_cr("Locals:");
+for (int i = 0; i < _method->max_locals(); i++) {
+  tty->print("  local[%d]: ", i);
+  dispatch->local_type_at(i)->print_name_on(tty);
+  tty->print_cr("");
+}
+}
 
   // ------------------------------------------------------------------
   // ciTypeFlow::fix_predecessors
@@ -2987,7 +3017,6 @@ void ciTypeFlow::connect_dispatch_loop(Block* dispatch, Loop* irr_region) {
   // Fix the predecessors after we have built dispatchers...
 
   void ciTypeFlow::fix_predecessors() {
-    dump_dot_graph(); 
     for (int i = 0; i < _method->get_method_blocks()->num_blocks(); ++i){
       GrowableArray<Block*>* blocks = _idx_to_blocklist[i];
       if (blocks == nullptr) continue;
@@ -3004,6 +3033,7 @@ void ciTypeFlow::connect_dispatch_loop(Block* dispatch, Loop* irr_region) {
       for (int j = 0; j < blocks->length(); ++j){
         // For each successor add me to its predecessor
         Block* blk = blocks->at(j);
+        if (!blk->has_pre_order()) continue;
         for (int k = 0; k < blk->successors()->length(); ++k) {
           Block* succ = blk->successors()->at(k);
           succ->predecessors()->append(blk);
@@ -3027,6 +3057,7 @@ void ciTypeFlow::connect_dispatch_loop(Block* dispatch, Loop* irr_region) {
         for (int k = 0; k < to_combine->length(); ++k) {
           combine_dispatch(blk, to_combine->at(k));
         }
+        split_dispatch_by_stack(blk);
       }    
     }
   }
@@ -3049,11 +3080,18 @@ void ciTypeFlow::connect_dispatch_loop(Block* dispatch, Loop* irr_region) {
         DispatchInfo* di = blk->dispatch()->at(j);
         if (di->trgt()->is_dispatch()) {
             blk->dispatch()->remove_at(j);
+        }else {
+	  di->trgt()->set_dispatch_target();
         }
     }
 
     second->successors()->clear();
     second->predecessors()->clear();
+
+tty->print_cr("=== ciTypeFlow state of dispatch block ===");
+tty->print_cr("Stack size: %d", blk->stack_size());
+tty->print_cr("Locals:");
+blk->def_locals()->print_on(tty, 5);      
   }
 
 	// ------------------------------------------------------------------
@@ -3289,7 +3327,7 @@ void ciTypeFlow::connect_dispatch_loop(Block* dispatch, Loop* irr_region) {
 	      
         if (!plp->head()->is_post_visited() || plp == nullptr || plp == loop_tree_root()){
           // Here we also want to break when the second entry no longer is part of the loop...
-          if(CIDispatch && !is_osr_flow()){
+          if(CIDispatch ){
              irreducible_loop = lp;
              _has_irreducible_entry = true;
              lp->set_irreducible(succ);
@@ -3338,7 +3376,7 @@ void ciTypeFlow::connect_dispatch_loop(Block* dispatch, Loop* irr_region) {
 	    blk->set_loop(innermost);
 	    innermost->def_locals()->add(blk->def_locals());
 	  }
-	  if (irreducible_loop != nullptr && _has_irreducible_entry && CIDispatch && !is_osr_flow()) {
+	  if (irreducible_loop != nullptr && _has_irreducible_entry && CIDispatch ) {
       tty->print_cr("Irreducible loop is: ");
       irreducible_loop->print(tty);
 	    irreducible = add_dispatch(irreducible_loop);
@@ -3460,7 +3498,7 @@ void ciTypeFlow::connect_dispatch_loop(Block* dispatch, Loop* irr_region) {
                 return irreducible;
               }
             }
-            if (CIDispatch && !is_osr_flow() && irreducible_block != nullptr){
+            if (CIDispatch  && irreducible_block != nullptr){
               // Do something here to manipulate the post orders..
               irreducible_block->set_post_order(next_po++);
               // If we have created a dispatch block then make sure to add the new successors to the worklist in the correct order
@@ -3503,7 +3541,7 @@ void ciTypeFlow::connect_dispatch_loop(Block* dispatch, Loop* irr_region) {
 	  // Depth first visit
 	  Block* irr_block = df_flow_types(start, true /*do flow*/, temp_vector, temp_set, true); 
     if (CIPrintLoops) {
-      dump_dot_graph();
+      //dump_dot_graph();
       GrowableArray<Loop*>* lp_queue = new (arena()) GrowableArray<Loop*>(arena(), 4, 0, nullptr);
       lp_queue->push(loop_tree_root());
 
@@ -3569,11 +3607,11 @@ void ciTypeFlow::connect_dispatch_loop(Block* dispatch, Loop* irr_region) {
 
 	  // Any loops found?
 	  if (loop_tree_root()->child() != nullptr &&
-	      env()->comp_level() >= CompLevel_full_optimization) {
+	      env()->comp_level() >= CompLevel_full_optimization && !CIDispatch) {
 	      // Loop optimizations are not performed on Tier1 compiles.
 	    bool changed = clone_loop_heads(temp_vector, temp_set);
 	    // If some loop heads were cloned, recompute postorder and loop tree
-	    if (changed && CIDispatch && !is_osr_flow() && irr_block != nullptr) { 
+	    if (changed && CIDispatch  && irr_block != nullptr) { 
         temp_vector = new StateVector(this);
 	      temp_set    = new JsrSet(4);
 
@@ -3592,9 +3630,10 @@ void ciTypeFlow::connect_dispatch_loop(Block* dispatch, Loop* irr_region) {
 
       }
 	  }
-    if (CIDispatch && !is_osr_flow()) {
-      fix_predecessors(); 
-    }
+    if (CIDispatch ) {
+      fix_predecessors();
+      dump_dot_graph();    
+}
 
 	  if (CITraceTypeFlow) {
 	    loop_tree_root()->print();

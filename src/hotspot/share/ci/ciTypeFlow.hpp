@@ -541,7 +541,7 @@ public:
          DispatchInfo* a = *o1;
          DispatchInfo* b = *o2;
          if (a->rpo() != b->rpo())
-           return a->rpo() - b->rpo();
+           return b->rpo() - a->rpo();
 
          return (a->target() < b->target()) ? -1 : (a->target() > b->target()) ? 1 : 0;
        }
@@ -578,10 +578,13 @@ public:
     // This block is a loop head of an irreducible loop.
     bool                             _irreducible_loop_head;
 
+    bool                             _is_dispatch_target;
+
     // This block is a secondary entry to an irreducible loop (entry but not head).
     bool                             _irreducible_loop_secondary_entry;
 
-
+    bool                             _is_reachable;
+    
     bool 			                       _irreducible_entry;
     // This block has monitor entry point.
     bool                             _has_monitorenter;
@@ -609,9 +612,29 @@ public:
       _trap_index = trap_index;
       assert(has_trap(), "");
     }
+
+
     bool has_trap()   const  { return _trap_bci != -1; }
     int  trap_bci()   const  { assert(has_trap(), ""); return _trap_bci; }
     int  trap_index() const  { assert(has_trap(), ""); return _trap_index; }
+
+    bool is_dispatch_target() const { return _is_dispatch_target; }
+
+    void set_dispatch_target()   { _is_dispatch_target = true; }
+
+    void set_unreachable() {
+      _is_reachable = false;
+      if (_successors != nullptr) {
+	      for(SuccIter iter(this); !iter.done(); iter.next()) {
+		  Block* succ = iter.succ();
+		  if (succ->predecessors()->length() == 1) {
+		    succ->set_unreachable();
+	        }
+	   }
+      }
+    }
+
+    bool is_reachable() const {return _is_reachable; }
 
     // accessors
     ciTypeFlow* outer() const { return state()->outer(); }
@@ -624,7 +647,16 @@ public:
 
     bool is_dispatch() const   { return _dispatchTargets != nullptr; }
     GrowableArray<DispatchInfo*>*  dispatch()    const   { assert(is_dispatch(), "only dispatcher has dispatch"); return _dispatchTargets; } 
-    void sort_dispatch()       { assert(is_dispatch(), "can only sort dispatch info if dispatcher"); _dispatchTargets->sort(DispatchInfo::compare); }
+    void sort_dispatch()       { 
+	assert(is_dispatch(), "can only sort dispatch info if dispatcher"); 
+	for(int i = _dispatchTargets->length() - 1; i >= 0; --i) {
+          Block* blk = _dispatchTargets->at(i)->block();
+	  if(!blk->is_reachable()){
+            _dispatchTargets->remove_at(i);
+          }
+        }
+	_dispatchTargets->sort(DispatchInfo::compare);
+    }
 
     bool    is_backedge_copy() const       { return _backedge_copy; }
     void   set_backedge_copy(bool z);
@@ -1026,6 +1058,7 @@ private:
   
   // Fix all predecessor information.
   // TODO: Remove dependency on this and make the build work from the beginning
+  void split_dispatch_by_stack(Block* disp);
   void fix_predecessors();
 
   void combine_dispatch(Block* main, Block* second);

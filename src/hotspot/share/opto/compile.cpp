@@ -2302,6 +2302,7 @@ void Compile::remove_root_to_sfpts_edges(PhaseIterGVN& igvn) {
 //------------------------------Optimize---------------------------------------
 // Given a graph, optimize it.
 void Compile::Optimize() {
+  if (CountOpts) tty->print_cr("Optimizing: %s", method()->name()->as_utf8());
   TracePhase tp(_t_optimizer);
 
 #ifndef PRODUCT
@@ -4494,8 +4495,13 @@ Compile::TracePhase::~TracePhase() {
   }
 #ifdef ASSERT
   if (PrintIdealNodeCount) {
-    tty->print_cr("phase name='%s' nodes='%d' live='%d' live_graph_walk='%d'",
+    if (_compile->method() != nullptr) {
+      tty->print_cr("method: '%s' phase name='%s' nodes='%d' live='%d' live_graph_walk='%d'",
+                  _compile->method()->name()->as_utf8(),phase_name(), _compile->unique(), _compile->live_nodes(), _compile->count_live_nodes_by_graph_walk());
+    }else {
+      tty->print_cr("phase name='%s' nodes='%d' live='%d' live_graph_walk='%d'",
                   phase_name(), _compile->unique(), _compile->live_nodes(), _compile->count_live_nodes_by_graph_walk());
+     }
   }
 
   if (VerifyIdealNodeCount) {

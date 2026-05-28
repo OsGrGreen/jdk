@@ -2176,6 +2176,14 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   if( phase->type_or_null(r) == Type::TOP ) // Dead code?
     return nullptr;                // No change
 
+  // If it does not have enough inputs then add inputs to itself...
+  if (CIDispatch) {
+    for (uint i = 0; i < req(); i++) {
+      if (in(i) == nullptr) {
+        set_req(i, this);
+	      }
+	    }
+  }
   Node *top = phase->C->top();
   bool new_phi = (outcnt() == 0); // transforming new Phi
   // No change for igvn if new phi is not hooked
@@ -2185,7 +2193,7 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   if (must_wait_for_region_in_irreducible_loop(phase)) {
     return nullptr;
   }
-
+ 
   // The are 2 situations when only one valid phi's input is left
   // (in addition to Region input).
   // One: region is not loop - replace phi with this input.
@@ -2209,6 +2217,7 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
     }
   }
 
+ 
   if (can_reshape && outcnt() == 0) {
     // set_req() above may kill outputs if Phi is referenced
     // only by itself on the dead (top) control path.
@@ -2238,13 +2247,18 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
     // Beyond the efficiency concern, there is a risk, if the casts are CastPPs, to end up with a chain of AddPs with
     // different base inputs (but a unique uncasted base input). This breaks an invariant in the shape of address
     // subtrees.
+   
     PhaseIterGVN* igvn = phase->is_IterGVN();
+    if (igvn == nullptr) {
+      tty->print_cr("This is kind of a big problem man");
+    }
     if (wait_for_cast_input_igvn(igvn)) {
       igvn->_worklist.push(this);
       return nullptr;
     }
     uncasted = true;
     uin = unique_input(phase, true);
+   
   }
   if (uin == top) {             // Simplest case: no alive inputs.
     if (can_reshape)            // IGVN transformation
@@ -2268,7 +2282,6 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
         }
       }
     }
-
     if (uncasted) {
       // Add cast nodes between the phi to be removed and its unique input.
       // Wait until after parsing for the type information to propagate from the casts.
@@ -2321,7 +2334,6 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
       }
       uin = cast;
     }
-
     // One unique input.
     DEBUG_ONLY(Node* ident = Identity(phase));
     // The unique input must eventually be detected by the Identity call.
