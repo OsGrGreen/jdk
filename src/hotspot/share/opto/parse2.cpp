@@ -412,7 +412,7 @@ void Parse::do_dispatchswitch() {
   tty->print_cr("Doing dispatch!");
   tty->print_cr("Current block is: %d", block()->flow()->rpo());
   // Add phi-node
-  int len           = block()->flow()->dispatch()->length(); //block()->flow()->predecessors()->length();
+  int len           = block()->flow()->dispatch()->length(); 
   for (int i = 0; i < block()->flow()->predecessors()->length(); i++) {
     tty->print_cr("Pred: %d", block()->flow()->predecessors()->at(i)->rpo());
   }
@@ -431,37 +431,21 @@ void Parse::do_dispatchswitch() {
 
   RegionNode* r = control()->as_Region();
   r->set_req(0, r);
-  // zap all inputs to null for debugging (done in Node(uint) constructor)
-  // for (int j = 1; j < edges+1; j++) { r->init_req(j, nullptr); }
-  //r->init_req(len, control());
-  //set_control(r);
 
-  //for (int i = 0; i < len; i++) {
-   //r->init_req(i + 1, predecessor_control_for(i));
-  //}
- 
-  //r->set_req(0, control()); 
   Node* jumpTarget  = new PhiNode(r, TypeInt::INT);
   _gvn.set_type(jumpTarget, TypeInt::INT);  
-  record_for_igvn(jumpTarget); 
-  //add_safepoint();
-  
-  // Find all unique targets... We do not need to have more unique numbers than targets.
-
-  // Instead of adding i we create a mapping between target and i, such that all with the same target get the same i.
-
-  // Then we can slightly simplify our jump/dispatching
- 
+  record_for_igvn(jumpTarget);  
 
   intptr_t *unique_ids = NEW_RESOURCE_ARRAY(intptr_t, len);
   int unique_length = 0; 
   for (int i = 0; i < len; ++i) {
     unique_ids[i] = -1;
   }
+
+
   int unused = -1;
   for (int i = 0; i < len; ++i){
     int targetBCI = block()->flow()->dispatch()->at(i)->target();
-    //tty->print_cr("Target: %d, from RPO: %d", targetBCI, block()->flow()->dispatch()->at(i)->rpo());
     int val = unused + 1;
     int empty = 0;
     for (int j = 0; j < len; ++j) {
@@ -492,9 +476,7 @@ void Parse::do_dispatchswitch() {
   }
 
 
-  //Informaiton for the tableswitch
-  int default_dest = greatest; // First successor...
- 
+  int default_dest = greatest;
 
   int unique = 0;
   intptr_t *targets = NEW_RESOURCE_ARRAY(intptr_t, len);
@@ -509,18 +491,7 @@ void Parse::do_dispatchswitch() {
        unique++;
      }
   }
-   // Make this work with previous info
 
-  //Since this code is never ran by the interpreter I do not think that any data will ever exist
-  /*ciMethodData* methodData = method()->method_data();
-  ciMultiBranchData* profile = nullptr;
- 
-  if (methodData->is_mature() && UseSwitchProfiling) {
-    ciProfileData* data = methodData->bci_to_data(bci()); // Everything gets pretty complicated when everything has BCI 0... maybe I should add some other 
-    if (data != nullptr && data->is_MultiBranchData()) {
-      profile = (ciMultiBranchData*) data;
-    }
-  }*/
   int rnum = unique + 2;
   int lo_index = 0;
   SwitchRange* ranges = NEW_RESOURCE_ARRAY(SwitchRange, rnum);
@@ -2106,40 +2077,6 @@ void Parse::do_one_bytecode() {
   }
 #endif
   if (block()->flow()->is_dispatch() && CIDispatch){
-    //bc(); // Needed for IGV maybe 
-      //Add dispatcher switch
-       // Add phi for predecessors, to determine successor
-       // How do I determine the order of successors (should be RPO)
-    // Here we must change all inputs to the map to be a phi if they are not already a phi-node...
-   
-	/*int local = jvms()->locoff();
-	while (jvms()->is_loc(local) && false) {
-	    Node* o = map()->in(local);
-	    if (o != nullptr && o != top()) {
-		Node* region = map()->control();
-		assert(region->is_Region(), "must have region for dispatch");
-		if (!o->is_Phi() || o->as_Phi()->region() != region->as_Region()) {
-		    const Type* t = block()->local_type_at(local - jvms()->locoff());
-		    
-		    if (t != nullptr && t != Type::TOP && t != Type::HALF && t != Type::BOTTOM) {
-			PhiNode* phi = PhiNode::make(region->as_Region(), o, t);
-			// CRITICAL: Initialize phi inputs to top() to prevent premature constant folding
-			for (uint i = 1; i < region->as_Region()->req(); i++) {
-			    phi->init_req(i, top());
-			}
-			// Don't set_type explicitly - let GVN compute from top() inputs
-			gvn().set_type(phi, t);
-			record_for_igvn(phi);
-			map()->set_req(local, phi);
-		    } else {
-			// Typeflow says this slot is dead - set to top()
-			tty->print_cr("Slot %d dead according to typeflow", local);
-			map()->set_req(local, top());
-		    }
-		}
-	    }
-	    local++;
-	}*/ 
     do_dispatchswitch();
     return;
   }

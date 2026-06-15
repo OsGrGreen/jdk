@@ -2181,9 +2181,10 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
     for (uint i = 0; i < req(); i++) {
       if (in(i) == nullptr) {
         set_req(i, this);
-	      }
 	    }
+	  }
   }
+
   Node *top = phase->C->top();
   bool new_phi = (outcnt() == 0); // transforming new Phi
   // No change for igvn if new phi is not hooked
@@ -2249,9 +2250,6 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
     // subtrees.
    
     PhaseIterGVN* igvn = phase->is_IterGVN();
-    if (igvn == nullptr) {
-      tty->print_cr("This is kind of a big problem man");
-    }
     if (wait_for_cast_input_igvn(igvn)) {
       igvn->_worklist.push(this);
       return nullptr;

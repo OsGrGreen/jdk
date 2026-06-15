@@ -443,7 +443,6 @@ class Parse : public GraphKit {
     return blk;
   }
 
-  //Shoud be private I think....
   Block* get_dispatch(int bci) {
     if (block()->flow()->is_dispatch()) {
       tty->print_cr("Finding next successor of bci: %d with new target: %d", bci, block()->successor_for_bci(block()->flow()->start() + 1)->rpo());

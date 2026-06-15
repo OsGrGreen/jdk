@@ -60,7 +60,7 @@
 
 // Allocate growable array storage in Arena.
 ciTypeFlow::JsrSet::JsrSet(Arena* arena, int default_len) : _set(arena, default_len, 0, nullptr) {
-assert(arena != nullptr, "invariant");
+  assert(arena != nullptr, "invariant");
 }
 
 // Allocate growable array storage in current ResourceArea.
@@ -69,11 +69,11 @@ ciTypeFlow::JsrSet::JsrSet(int default_len) : _set(default_len, 0, nullptr) {}
 // ------------------------------------------------------------------
 // ciTypeFlow::JsrSet::copy_into
 void ciTypeFlow::JsrSet::copy_into(JsrSet* jsrs) {
-int len = size();
-jsrs->_set.clear();
-for (int i = 0; i < len; i++) {
-  jsrs->_set.append(_set.at(i));
-}
+  int len = size();
+  jsrs->_set.clear();
+  for (int i = 0; i < len; i++) {
+    jsrs->_set.append(_set.at(i));
+  }
 }
 
 // ------------------------------------------------------------------
@@ -93,56 +93,56 @@ for (int i = 0; i < len; i++) {
 // Less formally, two JsrSets are compatible when they have identical
 // return addresses for any entry addresses they share in common.
 bool ciTypeFlow::JsrSet::is_compatible_with(JsrSet* other) {
-// Walk through both sets in parallel.  If the same entry address
-// appears in both sets, then the return address must match for
-// the sets to be compatible.
-int size1 = size();
-int size2 = other->size();
+  // Walk through both sets in parallel.  If the same entry address
+  // appears in both sets, then the return address must match for
+  // the sets to be compatible.
+  int size1 = size();
+  int size2 = other->size();
 
-// Special case.  If nothing is on the jsr stack, then there can
-// be no ret.
-if (size2 == 0) {
-  return true;
-} else if (size1 != size2) {
-  return false;
-} else {
-  for (int i = 0; i < size1; i++) {
-    JsrRecord* record1 = record_at(i);
-    JsrRecord* record2 = other->record_at(i);
-    if (record1->entry_address() != record2->entry_address() ||
-        record1->return_address() != record2->return_address()) {
-      return false;
+  // Special case.  If nothing is on the jsr stack, then there can
+  // be no ret.
+  if (size2 == 0) {
+    return true;
+  } else if (size1 != size2) {
+    return false;
+  } else {
+    for (int i = 0; i < size1; i++) {
+      JsrRecord* record1 = record_at(i);
+      JsrRecord* record2 = other->record_at(i);
+      if (record1->entry_address() != record2->entry_address() ||
+          record1->return_address() != record2->return_address()) {
+        return false;
+      }
     }
-  }
-  return true;
+    return true;
 }
 
 #if 0
-int pos1 = 0;
-int pos2 = 0;
-int size1 = size();
-int size2 = other->size();
-while (pos1 < size1 && pos2 < size2) {
-  JsrRecord* record1 = record_at(pos1);
-  JsrRecord* record2 = other->record_at(pos2);
-  int entry1 = record1->entry_address();
-  int entry2 = record2->entry_address();
-  if (entry1 < entry2) {
-    pos1++;
-  } else if (entry1 > entry2) {
-    pos2++;
-  } else {
-    if (record1->return_address() == record2->return_address()) {
+  int pos1 = 0;
+  int pos2 = 0;
+  int size1 = size();
+  int size2 = other->size();
+  while (pos1 < size1 && pos2 < size2) {
+    JsrRecord* record1 = record_at(pos1);
+    JsrRecord* record2 = other->record_at(pos2);
+    int entry1 = record1->entry_address();
+    int entry2 = record2->entry_address();
+    if (entry1 < entry2) {
       pos1++;
+    } else if (entry1 > entry2) {
       pos2++;
     } else {
-      // These two JsrSets are incompatible.
-      return false;
+      if (record1->return_address() == record2->return_address()) {
+        pos1++;
+        pos2++;
+      } else {
+        // These two JsrSets are incompatible.
+        return false;
+      }
     }
   }
-}
-// The two JsrSets agree.
-return true;
+  // The two JsrSets agree.
+  return true;
 #endif
 }
 
@@ -152,31 +152,31 @@ return true;
 // Insert the given JsrRecord into the JsrSet, maintaining the order
 // of the set and replacing any element with the same entry address.
 void ciTypeFlow::JsrSet::insert_jsr_record(JsrRecord* record) {
-int len = size();
-int entry = record->entry_address();
-int pos = 0;
-for ( ; pos < len; pos++) {
-  JsrRecord* current = record_at(pos);
-  if (entry == current->entry_address()) {
-    // Stomp over this entry.
-    _set.at_put(pos, record);
-    assert(size() == len, "must be same size");
-    return;
-  } else if (entry < current->entry_address()) {
-    break;
+  int len = size();
+  int entry = record->entry_address();
+  int pos = 0;
+  for ( ; pos < len; pos++) {
+    JsrRecord* current = record_at(pos);
+    if (entry == current->entry_address()) {
+      // Stomp over this entry.
+      _set.at_put(pos, record);
+      assert(size() == len, "must be same size");
+      return;
+    } else if (entry < current->entry_address()) {
+      break;
+    }
   }
-}
 
-// Insert the record into the list.
-JsrRecord* swap = record;
-JsrRecord* temp = nullptr;
-for ( ; pos < len; pos++) {
-  temp = _set.at(pos);
-  _set.at_put(pos, swap);
-  swap = temp;
-}
-_set.append(swap);
-assert(size() == len+1, "must be larger");
+  // Insert the record into the list.
+  JsrRecord* swap = record;
+  JsrRecord* temp = nullptr;
+  for ( ; pos < len; pos++) {
+    temp = _set.at(pos);
+    _set.at_put(pos, swap);
+    swap = temp;
+  }
+  _set.append(swap);
+  assert(size() == len+1, "must be larger");
 }
 
 // ------------------------------------------------------------------
@@ -184,20 +184,20 @@ assert(size() == len+1, "must be larger");
 //
 // Remove the JsrRecord with the given return address from the JsrSet.
 void ciTypeFlow::JsrSet::remove_jsr_record(int return_address) {
-int len = size();
-for (int i = 0; i < len; i++) {
-  if (record_at(i)->return_address() == return_address) {
-    // We have found the proper entry.  Remove it from the
-    // JsrSet and exit.
-    for (int j = i + 1; j < len ; j++) {
-      _set.at_put(j - 1, _set.at(j));
+  int len = size();
+  for (int i = 0; i < len; i++) {
+    if (record_at(i)->return_address() == return_address) {
+      // We have found the proper entry.  Remove it from the
+      // JsrSet and exit.
+      for (int j = i + 1; j < len ; j++) {
+        _set.at_put(j - 1, _set.at(j));
+      }
+      _set.trunc_to(len - 1);
+      assert(size() == len-1, "must be smaller");
+      return;
     }
-    _set.trunc_to(len - 1);
-    assert(size() == len-1, "must be smaller");
-    return;
   }
-}
-assert(false, "verify: returning from invalid subroutine");
+  assert(false, "verify: returning from invalid subroutine");
 }
 
 // ------------------------------------------------------------------
@@ -206,47 +206,47 @@ assert(false, "verify: returning from invalid subroutine");
 // Apply the effect of a control-flow bytecode on the JsrSet.  The
 // only bytecodes that modify the JsrSet are jsr and ret.
 void ciTypeFlow::JsrSet::apply_control(ciTypeFlow* analyzer,
-                                     ciBytecodeStream* str,
-                                     ciTypeFlow::StateVector* state) {
-Bytecodes::Code code = str->cur_bc();
-if (code == Bytecodes::_jsr) {
-  JsrRecord* record =
-    analyzer->make_jsr_record(str->get_dest(), str->next_bci());
-  insert_jsr_record(record);
-} else if (code == Bytecodes::_jsr_w) {
-  JsrRecord* record =
-    analyzer->make_jsr_record(str->get_far_dest(), str->next_bci());
-  insert_jsr_record(record);
-} else if (code == Bytecodes::_ret) {
-  Cell local = state->local(str->get_index());
-  ciType* return_address = state->type_at(local);
-  assert(return_address->is_return_address(), "verify: wrong type");
-  if (size() == 0) {
-    // Ret-state underflow:  Hit a ret w/o any previous jsrs.  Bail out.
-    // This can happen when a loop is inside a finally clause (4614060).
-    analyzer->record_failure("OSR in finally clause");
-    return;
+                                       ciBytecodeStream* str,
+                                       ciTypeFlow::StateVector* state) {
+  Bytecodes::Code code = str->cur_bc();
+  if (code == Bytecodes::_jsr) {
+    JsrRecord* record =
+      analyzer->make_jsr_record(str->get_dest(), str->next_bci());
+    insert_jsr_record(record);
+  } else if (code == Bytecodes::_jsr_w) {
+    JsrRecord* record =
+      analyzer->make_jsr_record(str->get_far_dest(), str->next_bci());
+    insert_jsr_record(record);
+  } else if (code == Bytecodes::_ret) {
+    Cell local = state->local(str->get_index());
+    ciType* return_address = state->type_at(local);
+    assert(return_address->is_return_address(), "verify: wrong type");
+    if (size() == 0) {
+      // Ret-state underflow:  Hit a ret w/o any previous jsrs.  Bail out.
+      // This can happen when a loop is inside a finally clause (4614060).
+      analyzer->record_failure("OSR in finally clause");
+      return;
+    }
+    remove_jsr_record(return_address->as_return_address()->bci());
   }
-  remove_jsr_record(return_address->as_return_address()->bci());
-}
 }
 
 #ifndef PRODUCT
 // ------------------------------------------------------------------
 // ciTypeFlow::JsrSet::print_on
 void ciTypeFlow::JsrSet::print_on(outputStream* st) const {
-st->print("{ ");
-int num_elements = size();
-if (num_elements > 0) {
-  int i = 0;
-  for( ; i < num_elements - 1; i++) {
+  st->print("{ ");
+  int num_elements = size();
+  if (num_elements > 0) {
+    int i = 0;
+    for( ; i < num_elements - 1; i++) {
+      _set.at(i)->print_on(st);
+      st->print(", ");
+    }
     _set.at(i)->print_on(st);
-    st->print(", ");
+    st->print(" ");
   }
-  _set.at(i)->print_on(st);
-  st->print(" ");
-}
-st->print("}");
+  st->print("}");
 }
 #endif
 
@@ -271,72 +271,72 @@ st->print("}");
 //   kind is their least common ancestor.  The meet of two types of
 //   different kinds is always java.lang.Object.
 ciType* ciTypeFlow::StateVector::type_meet_internal(ciType* t1, ciType* t2, ciTypeFlow* analyzer) {
-assert(t1 != t2, "checked in caller");
-if (t1->equals(top_type())) {
-  return t2;
-} else if (t2->equals(top_type())) {
-  return t1;
-} else if (t1->is_primitive_type() || t2->is_primitive_type()) {
-  // Special case null_type.  null_type meet any reference type T
-  // is T.  null_type meet null_type is null_type.
-  if (t1->equals(null_type())) {
-    if (!t2->is_primitive_type() || t2->equals(null_type())) {
-      return t2;
+  assert(t1 != t2, "checked in caller");
+  if (t1->equals(top_type())) {
+    return t2;
+  } else if (t2->equals(top_type())) {
+    return t1;
+  } else if (t1->is_primitive_type() || t2->is_primitive_type()) {
+    // Special case null_type.  null_type meet any reference type T
+    // is T.  null_type meet null_type is null_type.
+    if (t1->equals(null_type())) {
+      if (!t2->is_primitive_type() || t2->equals(null_type())) {
+        return t2;
+      }
+    } else if (t2->equals(null_type())) {
+      if (!t1->is_primitive_type()) {
+        return t1;
+      }
     }
-  } else if (t2->equals(null_type())) {
-    if (!t1->is_primitive_type()) {
-      return t1;
-    }
-  }
 
-  // At least one of the two types is a non-top primitive type.
-  // The other type is not equal to it.  Fall to bottom.
-  return bottom_type();
-} else {
-  // Both types are non-top non-primitive types.  That is,
-  // both types are either instanceKlasses or arrayKlasses.
-  ciKlass* object_klass = analyzer->env()->Object_klass();
-  ciKlass* k1 = t1->as_klass();
-  ciKlass* k2 = t2->as_klass();
-  if (k1->equals(object_klass) || k2->equals(object_klass)) {
-    return object_klass;
-  } else if (!k1->is_loaded() || !k2->is_loaded()) {
-    // Unloaded classes fall to java.lang.Object at a merge.
-    return object_klass;
-  } else if (k1->is_interface() != k2->is_interface()) {
-    // When an interface meets a non-interface, we get Object;
-    // This is what the verifier does.
-    return object_klass;
-  } else if (k1->is_array_klass() || k2->is_array_klass()) {
-    // When an array meets a non-array, we get Object.
-    // When objArray meets typeArray, we also get Object.
-    // And when typeArray meets different typeArray, we again get Object.
-    // But when objArray meets objArray, we look carefully at element types.
-    if (k1->is_obj_array_klass() && k2->is_obj_array_klass()) {
-      // Meet the element types, then construct the corresponding array type.
-      ciKlass* elem1 = k1->as_obj_array_klass()->element_klass();
-      ciKlass* elem2 = k2->as_obj_array_klass()->element_klass();
-      ciKlass* elem  = type_meet_internal(elem1, elem2, analyzer)->as_klass();
-      // Do an easy shortcut if one type is a super of the other.
-      if (elem == elem1) {
-        assert(k1 == ciObjArrayKlass::make(elem), "shortcut is OK");
-        return k1;
-      } else if (elem == elem2) {
-        assert(k2 == ciObjArrayKlass::make(elem), "shortcut is OK");
-        return k2;
+    // At least one of the two types is a non-top primitive type.
+    // The other type is not equal to it.  Fall to bottom.
+    return bottom_type();
+  } else {
+    // Both types are non-top non-primitive types.  That is,
+    // both types are either instanceKlasses or arrayKlasses.
+    ciKlass* object_klass = analyzer->env()->Object_klass();
+    ciKlass* k1 = t1->as_klass();
+    ciKlass* k2 = t2->as_klass();
+    if (k1->equals(object_klass) || k2->equals(object_klass)) {
+      return object_klass;
+    } else if (!k1->is_loaded() || !k2->is_loaded()) {
+      // Unloaded classes fall to java.lang.Object at a merge.
+      return object_klass;
+    } else if (k1->is_interface() != k2->is_interface()) {
+      // When an interface meets a non-interface, we get Object;
+      // This is what the verifier does.
+      return object_klass;
+    } else if (k1->is_array_klass() || k2->is_array_klass()) {
+      // When an array meets a non-array, we get Object.
+      // When objArray meets typeArray, we also get Object.
+      // And when typeArray meets different typeArray, we again get Object.
+      // But when objArray meets objArray, we look carefully at element types.
+      if (k1->is_obj_array_klass() && k2->is_obj_array_klass()) {
+        // Meet the element types, then construct the corresponding array type.
+        ciKlass* elem1 = k1->as_obj_array_klass()->element_klass();
+        ciKlass* elem2 = k2->as_obj_array_klass()->element_klass();
+        ciKlass* elem  = type_meet_internal(elem1, elem2, analyzer)->as_klass();
+        // Do an easy shortcut if one type is a super of the other.
+        if (elem == elem1) {
+          assert(k1 == ciObjArrayKlass::make(elem), "shortcut is OK");
+          return k1;
+        } else if (elem == elem2) {
+          assert(k2 == ciObjArrayKlass::make(elem), "shortcut is OK");
+          return k2;
+        } else {
+          return ciObjArrayKlass::make(elem);
+        }
       } else {
-        return ciObjArrayKlass::make(elem);
+        return object_klass;
       }
     } else {
-      return object_klass;
+      // Must be two plain old instance klasses.
+      assert(k1->is_instance_klass(), "previous cases handle non-instances");
+      assert(k2->is_instance_klass(), "previous cases handle non-instances");
+      return k1->least_common_ancestor(k2);
     }
-  } else {
-    // Must be two plain old instance klasses.
-    assert(k1->is_instance_klass(), "previous cases handle non-instances");
-    assert(k2->is_instance_klass(), "previous cases handle non-instances");
-    return k1->least_common_ancestor(k2);
   }
-}
 }
 
 
@@ -345,18 +345,18 @@ if (t1->equals(top_type())) {
 //
 // Build a new state vector
 ciTypeFlow::StateVector::StateVector(ciTypeFlow* analyzer) {
-_outer = analyzer;
-_stack_size = -1;
-_monitor_count = -1;
-// Allocate the _types array
-int max_cells = analyzer->max_cells();
-_types = (ciType**)analyzer->arena()->Amalloc(sizeof(ciType*) * max_cells);
-for (int i=0; i<max_cells; i++) {
-  _types[i] = top_type();
-}
-_trap_bci = -1;
-_trap_index = 0;
-_def_locals.clear();
+  _outer = analyzer;
+  _stack_size = -1;
+  _monitor_count = -1;
+  // Allocate the _types array
+  int max_cells = analyzer->max_cells();
+  _types = (ciType**)analyzer->arena()->Amalloc(sizeof(ciType*) * max_cells);
+  for (int i=0; i<max_cells; i++) {
+    _types[i] = top_type();
+  }
+  _trap_bci = -1;
+  _trap_index = 0;
+  _def_locals.clear();
 }
 
 
@@ -365,54 +365,54 @@ _def_locals.clear();
 //
 // Set this vector to the method entry state.
 const ciTypeFlow::StateVector* ciTypeFlow::get_start_state() {
-StateVector* state = new StateVector(this);
-if (is_osr_flow()) {
-  ciTypeFlow* non_osr_flow = method()->get_flow_analysis();
-  if (non_osr_flow->failing()) {
-    record_failure(non_osr_flow->failure_reason());
-    return nullptr;
-  }
-  JsrSet* jsrs = new JsrSet(4);
-  Block* non_osr_block = non_osr_flow->existing_block_at(start_bci(), jsrs);
-  if (non_osr_block == nullptr) {
-    record_failure("cannot reach OSR point");
-    return nullptr;
-  }
-  // load up the non-OSR state at this point
-  non_osr_block->copy_state_into(state);
-  int non_osr_start = non_osr_block->start();
-  if (non_osr_start != start_bci()) {
-    // must flow forward from it
-    if (CITraceTypeFlow) {
-      tty->print_cr(">> Interpreting pre-OSR block %d:", non_osr_start);
+  StateVector* state = new StateVector(this);
+  if (is_osr_flow()) {
+    ciTypeFlow* non_osr_flow = method()->get_flow_analysis();
+    if (non_osr_flow->failing()) {
+      record_failure(non_osr_flow->failure_reason());
+      return nullptr;
     }
-    Block* block = block_at(non_osr_start, jsrs);
-    assert(block->limit() == start_bci(), "must flow forward to start");
-    flow_block(block, state, jsrs);
+    JsrSet* jsrs = new JsrSet(4);
+    Block* non_osr_block = non_osr_flow->existing_block_at(start_bci(), jsrs);
+    if (non_osr_block == nullptr) {
+      record_failure("cannot reach OSR point");
+      return nullptr;
+    }
+    // load up the non-OSR state at this point
+    non_osr_block->copy_state_into(state);
+    int non_osr_start = non_osr_block->start();
+    if (non_osr_start != start_bci()) {
+      // must flow forward from it
+      if (CITraceTypeFlow) {
+        tty->print_cr(">> Interpreting pre-OSR block %d:", non_osr_start);
+      }
+      Block* block = block_at(non_osr_start, jsrs);
+      assert(block->limit() == start_bci(), "must flow forward to start");
+      flow_block(block, state, jsrs);
+    }
+    return state;
+    // Note:  The code below would be an incorrect for an OSR flow,
+    // even if it were possible for an OSR entry point to be at bci zero.
   }
+  // "Push" the method signature into the first few locals.
+  state->set_stack_size(-max_locals());
+  if (!method()->is_static()) {
+    state->push(method()->holder());
+    assert(state->tos() == state->local(0), "");
+  }
+  for (ciSignatureStream str(method()->signature());
+       !str.at_return_type();
+       str.next()) {
+    state->push_translate(str.type());
+  }
+  // Set the rest of the locals to bottom.
+  assert(state->stack_size() <= 0, "stack size should not be strictly positive");
+  while (state->stack_size() < 0) {
+    state->push(state->bottom_type());
+  }
+  // Lock an object, if necessary.
+  state->set_monitor_count(method()->is_synchronized() ? 1 : 0);
   return state;
-  // Note:  The code below would be an incorrect for an OSR flow,
-  // even if it were possible for an OSR entry point to be at bci zero.
-}
-// "Push" the method signature into the first few locals.
-state->set_stack_size(-max_locals());
-if (!method()->is_static()) {
-  state->push(method()->holder());
-  assert(state->tos() == state->local(0), "");
-}
-for (ciSignatureStream str(method()->signature());
-     !str.at_return_type();
-     str.next()) {
-  state->push_translate(str.type());
-}
-// Set the rest of the locals to bottom.
-assert(state->stack_size() <= 0, "stack size should not be strictly positive");
-while (state->stack_size() < 0) {
-  state->push(state->bottom_type());
-}
-// Lock an object, if necessary.
-state->set_monitor_count(method()->is_synchronized() ? 1 : 0);
-return state;
 }
 
 // ------------------------------------------------------------------
@@ -421,12 +421,12 @@ return state;
 // Copy our value into some other StateVector
 void ciTypeFlow::StateVector::copy_into(ciTypeFlow::StateVector* copy)
 const {
-copy->set_stack_size(stack_size());
-copy->set_monitor_count(monitor_count());
-Cell limit = limit_cell();
-for (Cell c = start_cell(); c < limit; c = next_cell(c)) {
-  copy->set_type_at(c, type_at(c));
-}
+  copy->set_stack_size(stack_size());
+  copy->set_monitor_count(monitor_count());
+  Cell limit = limit_cell();
+  for (Cell c = start_cell(); c < limit; c = next_cell(c)) {
+    copy->set_type_at(c, type_at(c));
+  }
 }
 
 // ------------------------------------------------------------------
@@ -435,51 +435,51 @@ for (Cell c = start_cell(); c < limit; c = next_cell(c)) {
 // Meets this StateVector with another, destructively modifying this
 // one.  Returns true if any modification takes place.
 bool ciTypeFlow::StateVector::meet(const ciTypeFlow::StateVector* incoming) {
-if (monitor_count() == -1) {
-  set_monitor_count(incoming->monitor_count());
-}
-assert(monitor_count() == incoming->monitor_count(), "monitors must match");
-
-if (stack_size() == -1) {
-  set_stack_size(incoming->stack_size());
-  Cell limit = limit_cell();
-  #ifdef ASSERT
-  { for (Cell c = start_cell(); c < limit; c = next_cell(c)) {
-      assert(type_at(c) == top_type(), "");
-  } }
-  #endif
-  // Make a simple copy of the incoming state.
-  for (Cell c = start_cell(); c < limit; c = next_cell(c)) {
-    set_type_at(c, incoming->type_at(c));
+  if (monitor_count() == -1) {
+    set_monitor_count(incoming->monitor_count());
   }
-  return true;  // it is always different the first time
-}
-#ifdef ASSERT
-if (stack_size() != incoming->stack_size()) {
-  _outer->method()->print_codes();
-  tty->print_cr("!!!! Stack size conflict");
-  tty->print_cr("Current state:");
-  print_on(tty);
-  tty->print_cr("Incoming state:");
-  ((StateVector*)incoming)->print_on(tty);
-}
-#endif
-assert(stack_size() == incoming->stack_size(), "sanity");
+  assert(monitor_count() == incoming->monitor_count(), "monitors must match");
 
-bool different = false;
-Cell limit = limit_cell();
-for (Cell c = start_cell(); c < limit; c = next_cell(c)) {
-  ciType* t1 = type_at(c);
-  ciType* t2 = incoming->type_at(c);
-  if (!t1->equals(t2)) {
-    ciType* new_type = type_meet(t1, t2);
-    if (!t1->equals(new_type)) {
-      set_type_at(c, new_type);
-      different = true;
+  if (stack_size() == -1) {
+    set_stack_size(incoming->stack_size());
+    Cell limit = limit_cell();
+    #ifdef ASSERT
+    { for (Cell c = start_cell(); c < limit; c = next_cell(c)) {
+        assert(type_at(c) == top_type(), "");
+    } }
+    #endif
+    // Make a simple copy of the incoming state.
+    for (Cell c = start_cell(); c < limit; c = next_cell(c)) {
+      set_type_at(c, incoming->type_at(c));
+    }
+    return true;  // it is always different the first time
+  }
+#ifdef ASSERT
+  if (stack_size() != incoming->stack_size()) {
+    _outer->method()->print_codes();
+    tty->print_cr("!!!! Stack size conflict");
+    tty->print_cr("Current state:");
+    print_on(tty);
+    tty->print_cr("Incoming state:");
+    ((StateVector*)incoming)->print_on(tty);
+  }
+#endif
+  assert(stack_size() == incoming->stack_size(), "sanity");
+
+  bool different = false;
+  Cell limit = limit_cell();
+  for (Cell c = start_cell(); c < limit; c = next_cell(c)) {
+    ciType* t1 = type_at(c);
+    ciType* t2 = incoming->type_at(c);
+    if (!t1->equals(t2)) {
+      ciType* new_type = type_meet(t1, t2);
+      if (!t1->equals(new_type)) {
+        set_type_at(c, new_type);
+        different = true;
+      }
     }
   }
-}
-return different;
+  return different;
 }
 
 // ------------------------------------------------------------------
@@ -489,345 +489,345 @@ return different;
 // one.  The incoming state is coming via an exception.  Returns true
 // if any modification takes place.
 bool ciTypeFlow::StateVector::meet_exception(ciInstanceKlass* exc,
-                                   const ciTypeFlow::StateVector* incoming) {
-if (monitor_count() == -1) {
-  set_monitor_count(incoming->monitor_count());
-}
-assert(monitor_count() == incoming->monitor_count(), "monitors must match");
+                                     const ciTypeFlow::StateVector* incoming) {
+  if (monitor_count() == -1) {
+    set_monitor_count(incoming->monitor_count());
+  }
+  assert(monitor_count() == incoming->monitor_count(), "monitors must match");
 
-if (stack_size() == -1) {
-  set_stack_size(1);
-}
+  if (stack_size() == -1) {
+    set_stack_size(1);
+  }
 
-assert(stack_size() ==  1, "must have one-element stack");
+  assert(stack_size() ==  1, "must have one-element stack");
 
-bool different = false;
+  bool different = false;
 
-// Meet locals from incoming array.
-Cell limit = local_limit_cell();
-for (Cell c = start_cell(); c < limit; c = next_cell(c)) {
-  ciType* t1 = type_at(c);
-  ciType* t2 = incoming->type_at(c);
-  if (!t1->equals(t2)) {
-    ciType* new_type = type_meet(t1, t2);
-    if (!t1->equals(new_type)) {
-      set_type_at(c, new_type);
+  // Meet locals from incoming array.
+  Cell limit = local_limit_cell();
+  for (Cell c = start_cell(); c < limit; c = next_cell(c)) {
+    ciType* t1 = type_at(c);
+    ciType* t2 = incoming->type_at(c);
+    if (!t1->equals(t2)) {
+      ciType* new_type = type_meet(t1, t2);
+      if (!t1->equals(new_type)) {
+        set_type_at(c, new_type);
+        different = true;
+      }
+    }
+  }
+
+  // Handle stack separately.  When an exception occurs, the
+  // only stack entry is the exception instance.
+  ciType* tos_type = type_at_tos();
+  if (!tos_type->equals(exc)) {
+    ciType* new_type = type_meet(tos_type, exc);
+    if (!tos_type->equals(new_type)) {
+      set_type_at_tos(new_type);
       different = true;
     }
   }
-}
 
-// Handle stack separately.  When an exception occurs, the
-// only stack entry is the exception instance.
-ciType* tos_type = type_at_tos();
-if (!tos_type->equals(exc)) {
-  ciType* new_type = type_meet(tos_type, exc);
-  if (!tos_type->equals(new_type)) {
-    set_type_at_tos(new_type);
-    different = true;
-  }
-}
-
-return different;
+  return different;
 }
 
 // ------------------------------------------------------------------
 // ciTypeFlow::StateVector::push_translate
 void ciTypeFlow::StateVector::push_translate(ciType* type) {
-BasicType basic_type = type->basic_type();
-if (basic_type == T_BOOLEAN || basic_type == T_CHAR ||
-    basic_type == T_BYTE    || basic_type == T_SHORT) {
-  push_int();
-} else {
-  push(type);
-  if (type->is_two_word()) {
-    push(half_type(type));
+  BasicType basic_type = type->basic_type();
+  if (basic_type == T_BOOLEAN || basic_type == T_CHAR ||
+      basic_type == T_BYTE    || basic_type == T_SHORT) {
+    push_int();
+  } else {
+    push(type);
+    if (type->is_two_word()) {
+      push(half_type(type));
+    }
   }
-}
 }
 
 // ------------------------------------------------------------------
 // ciTypeFlow::StateVector::do_aaload
 void ciTypeFlow::StateVector::do_aaload(ciBytecodeStream* str) {
-pop_int();
-ciObjArrayKlass* array_klass = pop_objArray();
-if (array_klass == nullptr) {
-  // Did aaload on a null reference; push a null and ignore the exception.
-  // This instruction will never continue normally.  All we have to do
-  // is report a value that will meet correctly with any downstream
-  // reference types on paths that will truly be executed.  This null type
-  // meets with any reference type to yield that same reference type.
-  // (The compiler will generate an unconditional exception here.)
-  push(null_type());
-  return;
-}
-if (!array_klass->is_loaded()) {
-  // Only fails for some -Xcomp runs
-  trap(str, array_klass,
-       Deoptimization::make_trap_request
-       (Deoptimization::Reason_unloaded,
-        Deoptimization::Action_reinterpret));
-  return;
-}
-ciKlass* element_klass = array_klass->element_klass();
-if (!element_klass->is_loaded() && element_klass->is_instance_klass()) {
-  Untested("unloaded array element class in ciTypeFlow");
-  trap(str, element_klass,
-       Deoptimization::make_trap_request
-       (Deoptimization::Reason_unloaded,
-        Deoptimization::Action_reinterpret));
-} else {
-  push_object(element_klass);
-}
+  pop_int();
+  ciObjArrayKlass* array_klass = pop_objArray();
+  if (array_klass == nullptr) {
+    // Did aaload on a null reference; push a null and ignore the exception.
+    // This instruction will never continue normally.  All we have to do
+    // is report a value that will meet correctly with any downstream
+    // reference types on paths that will truly be executed.  This null type
+    // meets with any reference type to yield that same reference type.
+    // (The compiler will generate an unconditional exception here.)
+    push(null_type());
+    return;
+  }
+  if (!array_klass->is_loaded()) {
+    // Only fails for some -Xcomp runs
+    trap(str, array_klass,
+         Deoptimization::make_trap_request
+         (Deoptimization::Reason_unloaded,
+          Deoptimization::Action_reinterpret));
+    return;
+  }
+  ciKlass* element_klass = array_klass->element_klass();
+  if (!element_klass->is_loaded() && element_klass->is_instance_klass()) {
+    Untested("unloaded array element class in ciTypeFlow");
+    trap(str, element_klass,
+         Deoptimization::make_trap_request
+         (Deoptimization::Reason_unloaded,
+          Deoptimization::Action_reinterpret));
+  } else {
+    push_object(element_klass);
+  }
 }
 
 
 // ------------------------------------------------------------------
 // ciTypeFlow::StateVector::do_checkcast
 void ciTypeFlow::StateVector::do_checkcast(ciBytecodeStream* str) {
-bool will_link;
-ciKlass* klass = str->get_klass(will_link);
-if (!will_link) {
-  // VM's interpreter will not load 'klass' if object is null.
-  // Type flow after this block may still be needed in two situations:
-  // 1) C2 uses do_null_assert() and continues compilation for later blocks
-  // 2) C2 does an OSR compile in a later block (see bug 4778368).
-  pop_object();
-  do_null_assert(klass);
-} else {
-  pop_object();
-  push_object(klass);
-}
+  bool will_link;
+  ciKlass* klass = str->get_klass(will_link);
+  if (!will_link) {
+    // VM's interpreter will not load 'klass' if object is null.
+    // Type flow after this block may still be needed in two situations:
+    // 1) C2 uses do_null_assert() and continues compilation for later blocks
+    // 2) C2 does an OSR compile in a later block (see bug 4778368).
+    pop_object();
+    do_null_assert(klass);
+  } else {
+    pop_object();
+    push_object(klass);
+  }
 }
 
 // ------------------------------------------------------------------
 // ciTypeFlow::StateVector::do_getfield
 void ciTypeFlow::StateVector::do_getfield(ciBytecodeStream* str) {
-// could add assert here for type of object.
-pop_object();
-do_getstatic(str);
+  // could add assert here for type of object.
+  pop_object();
+  do_getstatic(str);
 }
 
 // ------------------------------------------------------------------
 // ciTypeFlow::StateVector::do_getstatic
 void ciTypeFlow::StateVector::do_getstatic(ciBytecodeStream* str) {
-bool will_link;
-ciField* field = str->get_field(will_link);
-if (!will_link) {
-  trap(str, field->holder(), str->get_field_holder_index());
-} else {
-  ciType* field_type = field->type();
-  if (!field_type->is_loaded()) {
-    // Normally, we need the field's type to be loaded if we are to
-    // do anything interesting with its value.
-    // We used to do this:  trap(str, str->get_field_signature_index());
-    //
-    // There is one good reason not to trap here.  Execution can
-    // get past this "getfield" or "getstatic" if the value of
-    // the field is null.  As long as the value is null, the class
-    // does not need to be loaded!  The compiler must assume that
-    // the value of the unloaded class reference is null; if the code
-    // ever sees a non-null value, loading has occurred.
-    //
-    // This actually happens often enough to be annoying.  If the
-    // compiler throws an uncommon trap at this bytecode, you can
-    // get an endless loop of recompilations, when all the code
-    // needs to do is load a series of null values.  Also, a trap
-    // here can make an OSR entry point unreachable, triggering the
-    // assert on non_osr_block in ciTypeFlow::get_start_state.
-    // (See bug 4379915.)
-    do_null_assert(field_type->as_klass());
+  bool will_link;
+  ciField* field = str->get_field(will_link);
+  if (!will_link) {
+    trap(str, field->holder(), str->get_field_holder_index());
   } else {
-    push_translate(field_type);
+    ciType* field_type = field->type();
+    if (!field_type->is_loaded()) {
+      // Normally, we need the field's type to be loaded if we are to
+      // do anything interesting with its value.
+      // We used to do this:  trap(str, str->get_field_signature_index());
+      //
+      // There is one good reason not to trap here.  Execution can
+      // get past this "getfield" or "getstatic" if the value of
+      // the field is null.  As long as the value is null, the class
+      // does not need to be loaded!  The compiler must assume that
+      // the value of the unloaded class reference is null; if the code
+      // ever sees a non-null value, loading has occurred.
+      //
+      // This actually happens often enough to be annoying.  If the
+      // compiler throws an uncommon trap at this bytecode, you can
+      // get an endless loop of recompilations, when all the code
+      // needs to do is load a series of null values.  Also, a trap
+      // here can make an OSR entry point unreachable, triggering the
+      // assert on non_osr_block in ciTypeFlow::get_start_state.
+      // (See bug 4379915.)
+      do_null_assert(field_type->as_klass());
+    } else {
+      push_translate(field_type);
+    }
   }
-}
 }
 
 // ------------------------------------------------------------------
 // ciTypeFlow::StateVector::do_invoke
 void ciTypeFlow::StateVector::do_invoke(ciBytecodeStream* str,
-                                      bool has_receiver) {
-bool will_link;
-ciSignature* declared_signature = nullptr;
-ciMethod* callee = str->get_method(will_link, &declared_signature);
-assert(declared_signature != nullptr, "cannot be null");
-if (!will_link) {
-  // We weren't able to find the method.
-  if (str->cur_bc() == Bytecodes::_invokedynamic) {
-    trap(str, nullptr,
-         Deoptimization::make_trap_request
-         (Deoptimization::Reason_uninitialized,
-          Deoptimization::Action_reinterpret));
-  } else {
-    ciKlass* unloaded_holder = callee->holder();
-    trap(str, unloaded_holder, str->get_method_holder_index());
-  }
-} else {
-  // We are using the declared signature here because it might be
-  // different from the callee signature (Cf. invokedynamic and
-  // invokehandle).
-  ciSignatureStream sigstr(declared_signature);
-  const int arg_size = declared_signature->size();
-  const int stack_base = stack_size() - arg_size;
-  int i = 0;
-  for( ; !sigstr.at_return_type(); sigstr.next()) {
-    ciType* type = sigstr.type();
-    ciType* stack_type = type_at(stack(stack_base + i++));
-    // Do I want to check this type?
-    // assert(stack_type->is_subtype_of(type), "bad type for field value");
-    if (type->is_two_word()) {
-      ciType* stack_type2 = type_at(stack(stack_base + i++));
-      assert(stack_type2->equals(half_type(type)), "must be 2nd half");
-    }
-  }
-  assert(arg_size == i, "must match");
-  for (int j = 0; j < arg_size; j++) {
-    pop();
-  }
-  if (has_receiver) {
-    // Check this?
-    pop_object();
-  }
-  assert(!sigstr.is_done(), "must have return type");
-  ciType* return_type = sigstr.type();
-  if (!return_type->is_void()) {
-    if (!return_type->is_loaded()) {
-      // As in do_getstatic(), generally speaking, we need the return type to
-      // be loaded if we are to do anything interesting with its value.
-      // We used to do this:  trap(str, str->get_method_signature_index());
-      //
-      // We do not trap here since execution can get past this invoke if
-      // the return value is null.  As long as the value is null, the class
-      // does not need to be loaded!  The compiler must assume that
-      // the value of the unloaded class reference is null; if the code
-      // ever sees a non-null value, loading has occurred.
-      //
-      // See do_getstatic() for similar explanation, as well as bug 4684993.
-      do_null_assert(return_type->as_klass());
+                                        bool has_receiver) {
+  bool will_link;
+  ciSignature* declared_signature = nullptr;
+  ciMethod* callee = str->get_method(will_link, &declared_signature);
+  assert(declared_signature != nullptr, "cannot be null");
+  if (!will_link) {
+    // We weren't able to find the method.
+    if (str->cur_bc() == Bytecodes::_invokedynamic) {
+      trap(str, nullptr,
+           Deoptimization::make_trap_request
+           (Deoptimization::Reason_uninitialized,
+            Deoptimization::Action_reinterpret));
     } else {
-      push_translate(return_type);
+      ciKlass* unloaded_holder = callee->holder();
+      trap(str, unloaded_holder, str->get_method_holder_index());
+    }
+  } else {
+    // We are using the declared signature here because it might be
+    // different from the callee signature (Cf. invokedynamic and
+    // invokehandle).
+    ciSignatureStream sigstr(declared_signature);
+    const int arg_size = declared_signature->size();
+    const int stack_base = stack_size() - arg_size;
+    int i = 0;
+    for( ; !sigstr.at_return_type(); sigstr.next()) {
+      ciType* type = sigstr.type();
+      ciType* stack_type = type_at(stack(stack_base + i++));
+      // Do I want to check this type?
+      // assert(stack_type->is_subtype_of(type), "bad type for field value");
+      if (type->is_two_word()) {
+        ciType* stack_type2 = type_at(stack(stack_base + i++));
+        assert(stack_type2->equals(half_type(type)), "must be 2nd half");
+      }
+    }
+    assert(arg_size == i, "must match");
+    for (int j = 0; j < arg_size; j++) {
+      pop();
+    }
+    if (has_receiver) {
+      // Check this?
+      pop_object();
+    }
+    assert(!sigstr.is_done(), "must have return type");
+    ciType* return_type = sigstr.type();
+    if (!return_type->is_void()) {
+      if (!return_type->is_loaded()) {
+        // As in do_getstatic(), generally speaking, we need the return type to
+        // be loaded if we are to do anything interesting with its value.
+        // We used to do this:  trap(str, str->get_method_signature_index());
+        //
+        // We do not trap here since execution can get past this invoke if
+        // the return value is null.  As long as the value is null, the class
+        // does not need to be loaded!  The compiler must assume that
+        // the value of the unloaded class reference is null; if the code
+        // ever sees a non-null value, loading has occurred.
+        //
+        // See do_getstatic() for similar explanation, as well as bug 4684993.
+        do_null_assert(return_type->as_klass());
+      } else {
+        push_translate(return_type);
+      }
     }
   }
-}
 }
 
 // ------------------------------------------------------------------
 // ciTypeFlow::StateVector::do_jsr
 void ciTypeFlow::StateVector::do_jsr(ciBytecodeStream* str) {
-push(ciReturnAddress::make(str->next_bci()));
+  push(ciReturnAddress::make(str->next_bci()));
 }
 
 // ------------------------------------------------------------------
 // ciTypeFlow::StateVector::do_ldc
 void ciTypeFlow::StateVector::do_ldc(ciBytecodeStream* str) {
-if (str->is_in_error()) {
-  trap(str, nullptr, Deoptimization::make_trap_request(Deoptimization::Reason_unhandled,
-                                                       Deoptimization::Action_none));
-  return;
-}
-ciConstant con = str->get_constant();
-if (con.is_valid()) {
-  int cp_index = str->get_constant_pool_index();
-  if (!con.is_loaded()) {
-    trap(str, nullptr, Deoptimization::make_trap_request(Deoptimization::Reason_unloaded,
-                                                         Deoptimization::Action_reinterpret,
-                                                         cp_index));
+  if (str->is_in_error()) {
+    trap(str, nullptr, Deoptimization::make_trap_request(Deoptimization::Reason_unhandled,
+                                                         Deoptimization::Action_none));
     return;
   }
-  BasicType basic_type = str->get_basic_type_for_constant_at(cp_index);
-  if (is_reference_type(basic_type)) {
-    ciObject* obj = con.as_object();
-    if (obj->is_null_object()) {
-      push_null();
+  ciConstant con = str->get_constant();
+  if (con.is_valid()) {
+    int cp_index = str->get_constant_pool_index();
+    if (!con.is_loaded()) {
+      trap(str, nullptr, Deoptimization::make_trap_request(Deoptimization::Reason_unloaded,
+                                                           Deoptimization::Action_reinterpret,
+                                                           cp_index));
+      return;
+    }
+    BasicType basic_type = str->get_basic_type_for_constant_at(cp_index);
+    if (is_reference_type(basic_type)) {
+      ciObject* obj = con.as_object();
+      if (obj->is_null_object()) {
+        push_null();
+      } else {
+        assert(obj->is_instance() || obj->is_array(), "must be java_mirror of klass");
+        push_object(obj->klass());
+      }
     } else {
-      assert(obj->is_instance() || obj->is_array(), "must be java_mirror of klass");
-      push_object(obj->klass());
+      assert(basic_type == con.basic_type() || con.basic_type() == T_OBJECT,
+             "not a boxed form: %s vs %s", type2name(basic_type), type2name(con.basic_type()));
+      push_translate(ciType::make(basic_type));
     }
   } else {
-    assert(basic_type == con.basic_type() || con.basic_type() == T_OBJECT,
-           "not a boxed form: %s vs %s", type2name(basic_type), type2name(con.basic_type()));
-    push_translate(ciType::make(basic_type));
+    // OutOfMemoryError in the CI while loading a String constant.
+    push_null();
+    outer()->record_failure("ldc did not link");
   }
-} else {
-  // OutOfMemoryError in the CI while loading a String constant.
-  push_null();
-  outer()->record_failure("ldc did not link");
-}
 }
 
 // ------------------------------------------------------------------
 // ciTypeFlow::StateVector::do_multianewarray
 void ciTypeFlow::StateVector::do_multianewarray(ciBytecodeStream* str) {
-int dimensions = str->get_dimensions();
-bool will_link;
-ciArrayKlass* array_klass = str->get_klass(will_link)->as_array_klass();
-if (!will_link) {
-  trap(str, array_klass, str->get_klass_index());
-} else {
-  for (int i = 0; i < dimensions; i++) {
-    pop_int();
+  int dimensions = str->get_dimensions();
+  bool will_link;
+  ciArrayKlass* array_klass = str->get_klass(will_link)->as_array_klass();
+  if (!will_link) {
+    trap(str, array_klass, str->get_klass_index());
+  } else {
+    for (int i = 0; i < dimensions; i++) {
+      pop_int();
+    }
+    push_object(array_klass);
   }
-  push_object(array_klass);
-}
 }
 
 // ------------------------------------------------------------------
 // ciTypeFlow::StateVector::do_new
 void ciTypeFlow::StateVector::do_new(ciBytecodeStream* str) {
-bool will_link;
-ciKlass* klass = str->get_klass(will_link);
-if (!will_link || str->is_unresolved_klass()) {
-  trap(str, klass, str->get_klass_index());
-} else {
-  push_object(klass);
-}
+  bool will_link;
+  ciKlass* klass = str->get_klass(will_link);
+  if (!will_link || str->is_unresolved_klass()) {
+    trap(str, klass, str->get_klass_index());
+  } else {
+    push_object(klass);
+  }
 }
 
 // ------------------------------------------------------------------
 // ciTypeFlow::StateVector::do_newarray
 void ciTypeFlow::StateVector::do_newarray(ciBytecodeStream* str) {
-pop_int();
-ciKlass* klass = ciTypeArrayKlass::make((BasicType)str->get_index());
-push_object(klass);
+  pop_int();
+  ciKlass* klass = ciTypeArrayKlass::make((BasicType)str->get_index());
+  push_object(klass);
 }
 
 // ------------------------------------------------------------------
 // ciTypeFlow::StateVector::do_putfield
 void ciTypeFlow::StateVector::do_putfield(ciBytecodeStream* str) {
-do_putstatic(str);
-if (_trap_bci != -1)  return;  // unloaded field holder, etc.
-// could add assert here for type of object.
-pop_object();
+  do_putstatic(str);
+  if (_trap_bci != -1)  return;  // unloaded field holder, etc.
+  // could add assert here for type of object.
+  pop_object();
 }
 
 // ------------------------------------------------------------------
 // ciTypeFlow::StateVector::do_putstatic
 void ciTypeFlow::StateVector::do_putstatic(ciBytecodeStream* str) {
-bool will_link;
-ciField* field = str->get_field(will_link);
-if (!will_link) {
-  trap(str, field->holder(), str->get_field_holder_index());
-} else {
-  ciType* field_type = field->type();
-  ciType* type = pop_value();
-  // Do I want to check this type?
-  //      assert(type->is_subtype_of(field_type), "bad type for field value");
-  if (field_type->is_two_word()) {
-    ciType* type2 = pop_value();
-    assert(type2->is_two_word(), "must be 2nd half");
-    assert(type == half_type(type2), "must be 2nd half");
+  bool will_link;
+  ciField* field = str->get_field(will_link);
+  if (!will_link) {
+    trap(str, field->holder(), str->get_field_holder_index());
+  } else {
+    ciType* field_type = field->type();
+    ciType* type = pop_value();
+    // Do I want to check this type?
+    //      assert(type->is_subtype_of(field_type), "bad type for field value");
+    if (field_type->is_two_word()) {
+      ciType* type2 = pop_value();
+      assert(type2->is_two_word(), "must be 2nd half");
+      assert(type == half_type(type2), "must be 2nd half");
+    }
   }
-}
 }
 
 // ------------------------------------------------------------------
 // ciTypeFlow::StateVector::do_ret
 void ciTypeFlow::StateVector::do_ret(ciBytecodeStream* str) {
-Cell index = local(str->get_index());
+  Cell index = local(str->get_index());
 
-ciType* address = type_at(index);
-assert(address->is_return_address(), "bad return address");
-set_type_at(index, bottom_type());
+  ciType* address = type_at(index);
+  assert(address->is_return_address(), "bad return address");
+  set_type_at(index, bottom_type());
 }
 
 // ------------------------------------------------------------------
@@ -835,42 +835,42 @@ set_type_at(index, bottom_type());
 //
 // Stop interpretation of this path with a trap.
 void ciTypeFlow::StateVector::trap(ciBytecodeStream* str, ciKlass* klass, int index) {
-_trap_bci = str->cur_bci();
-_trap_index = index;
+  _trap_bci = str->cur_bci();
+  _trap_index = index;
 
-// Log information about this trap:
-CompileLog* log = outer()->env()->log();
-if (log != nullptr) {
-  int mid = log->identify(outer()->method());
-  int kid = (klass == nullptr)? -1: log->identify(klass);
-  log->begin_elem("uncommon_trap method='%d' bci='%d'", mid, str->cur_bci());
-  char buf[100];
-  log->print(" %s", Deoptimization::format_trap_request(buf, sizeof(buf),
-                                                        index));
-  if (kid >= 0)
-    log->print(" klass='%d'", kid);
-  log->end_elem();
-}
+  // Log information about this trap:
+  CompileLog* log = outer()->env()->log();
+  if (log != nullptr) {
+    int mid = log->identify(outer()->method());
+    int kid = (klass == nullptr)? -1: log->identify(klass);
+    log->begin_elem("uncommon_trap method='%d' bci='%d'", mid, str->cur_bci());
+    char buf[100];
+    log->print(" %s", Deoptimization::format_trap_request(buf, sizeof(buf),
+                                                          index));
+    if (kid >= 0)
+      log->print(" klass='%d'", kid);
+    log->end_elem();
+  }
 }
 
 // ------------------------------------------------------------------
 // ciTypeFlow::StateVector::do_null_assert
 // Corresponds to graphKit::do_null_assert.
 void ciTypeFlow::StateVector::do_null_assert(ciKlass* unloaded_klass) {
-if (unloaded_klass->is_loaded()) {
-  // We failed to link, but we can still compute with this class,
-  // since it is loaded somewhere.  The compiler will uncommon_trap
-  // if the object is not null, but the typeflow pass can not assume
-  // that the object will be null, otherwise it may incorrectly tell
-  // the parser that an object is known to be null. 4761344, 4807707
-  push_object(unloaded_klass);
-} else {
-  // The class is not loaded anywhere.  It is safe to model the
-  // null in the typestates, because we can compile in a null check
-  // which will deoptimize us if someone manages to load the
-  // class later.
-  push_null();
-}
+  if (unloaded_klass->is_loaded()) {
+    // We failed to link, but we can still compute with this class,
+    // since it is loaded somewhere.  The compiler will uncommon_trap
+    // if the object is not null, but the typeflow pass can not assume
+    // that the object will be null, otherwise it may incorrectly tell
+    // the parser that an object is known to be null. 4761344, 4807707
+    push_object(unloaded_klass);
+  } else {
+    // The class is not loaded anywhere.  It is safe to model the
+    // null in the typestates, because we can compile in a null check
+    // which will deoptimize us if someone manages to load the
+    // class later.
+    push_null();
+  }
 }
 
 
@@ -879,673 +879,673 @@ if (unloaded_klass->is_loaded()) {
 //
 // Apply the effect of one bytecode to this StateVector
 bool ciTypeFlow::StateVector::apply_one_bytecode(ciBytecodeStream* str) {
-_trap_bci = -1;
-_trap_index = 0;
+  _trap_bci = -1;
+  _trap_index = 0;
 
-if (CITraceTypeFlow) {
-  tty->print_cr(">> Interpreting bytecode %d:%s", str->cur_bci(),
-                Bytecodes::name(str->cur_bc()));
-}
-
-switch(str->cur_bc()) {
-case Bytecodes::_aaload: do_aaload(str);                       break;
-
-case Bytecodes::_aastore:
-  {
-    pop_object();
-    pop_int();
-    pop_objArray();
-    break;
+  if (CITraceTypeFlow) {
+    tty->print_cr(">> Interpreting bytecode %d:%s", str->cur_bci(),
+                  Bytecodes::name(str->cur_bc()));
   }
-case Bytecodes::_aconst_null:
-  {
-    push_null();
-    break;
-  }
-case Bytecodes::_aload:   load_local_object(str->get_index());    break;
-case Bytecodes::_aload_0: load_local_object(0);                   break;
-case Bytecodes::_aload_1: load_local_object(1);                   break;
-case Bytecodes::_aload_2: load_local_object(2);                   break;
-case Bytecodes::_aload_3: load_local_object(3);                   break;
 
-case Bytecodes::_anewarray:
-  {
-    pop_int();
-    bool will_link;
-    ciKlass* element_klass = str->get_klass(will_link);
-    if (!will_link) {
-      trap(str, element_klass, str->get_klass_index());
-    } else {
-      push_object(ciObjArrayKlass::make(element_klass));
+  switch(str->cur_bc()) {
+  case Bytecodes::_aaload: do_aaload(str);                       break;
+
+  case Bytecodes::_aastore:
+    {
+      pop_object();
+      pop_int();
+      pop_objArray();
+      break;
     }
-    break;
-  }
-case Bytecodes::_areturn:
-case Bytecodes::_ifnonnull:
-case Bytecodes::_ifnull:
-  {
-    pop_object();
-    break;
-  }
-case Bytecodes::_monitorenter:
-  {
-    pop_object();
-    set_monitor_count(monitor_count() + 1);
-    break;
-  }
-case Bytecodes::_monitorexit:
-  {
-    pop_object();
-    assert(monitor_count() > 0, "must be a monitor to exit from");
-    set_monitor_count(monitor_count() - 1);
-    break;
-  }
-case Bytecodes::_arraylength:
-  {
-    pop_array();
-    push_int();
-    break;
-  }
-case Bytecodes::_astore:   store_local_object(str->get_index());  break;
-case Bytecodes::_astore_0: store_local_object(0);                 break;
-case Bytecodes::_astore_1: store_local_object(1);                 break;
-case Bytecodes::_astore_2: store_local_object(2);                 break;
-case Bytecodes::_astore_3: store_local_object(3);                 break;
+  case Bytecodes::_aconst_null:
+    {
+      push_null();
+      break;
+    }
+  case Bytecodes::_aload:   load_local_object(str->get_index());    break;
+  case Bytecodes::_aload_0: load_local_object(0);                   break;
+  case Bytecodes::_aload_1: load_local_object(1);                   break;
+  case Bytecodes::_aload_2: load_local_object(2);                   break;
+  case Bytecodes::_aload_3: load_local_object(3);                   break;
 
-case Bytecodes::_athrow:
-  {
-    NEEDS_CLEANUP;
-    pop_object();
-    break;
-  }
-case Bytecodes::_baload:
-case Bytecodes::_caload:
-case Bytecodes::_iaload:
-case Bytecodes::_saload:
-  {
-    pop_int();
-    ciTypeArrayKlass* array_klass = pop_typeArray();
-    // Put assert here for right type?
-    push_int();
-    break;
-  }
-case Bytecodes::_bastore:
-case Bytecodes::_castore:
-case Bytecodes::_iastore:
-case Bytecodes::_sastore:
-  {
-    pop_int();
-    pop_int();
-    pop_typeArray();
-    // assert here?
-    break;
-  }
-case Bytecodes::_bipush:
-case Bytecodes::_iconst_m1:
-case Bytecodes::_iconst_0:
-case Bytecodes::_iconst_1:
-case Bytecodes::_iconst_2:
-case Bytecodes::_iconst_3:
-case Bytecodes::_iconst_4:
-case Bytecodes::_iconst_5:
-case Bytecodes::_sipush:
-  {
-    push_int();
-    break;
-  }
-case Bytecodes::_checkcast: do_checkcast(str);                  break;
+  case Bytecodes::_anewarray:
+    {
+      pop_int();
+      bool will_link;
+      ciKlass* element_klass = str->get_klass(will_link);
+      if (!will_link) {
+        trap(str, element_klass, str->get_klass_index());
+      } else {
+        push_object(ciObjArrayKlass::make(element_klass));
+      }
+      break;
+    }
+  case Bytecodes::_areturn:
+  case Bytecodes::_ifnonnull:
+  case Bytecodes::_ifnull:
+    {
+      pop_object();
+      break;
+    }
+  case Bytecodes::_monitorenter:
+    {
+      pop_object();
+      set_monitor_count(monitor_count() + 1);
+      break;
+    }
+  case Bytecodes::_monitorexit:
+    {
+      pop_object();
+      assert(monitor_count() > 0, "must be a monitor to exit from");
+      set_monitor_count(monitor_count() - 1);
+      break;
+    }
+  case Bytecodes::_arraylength:
+    {
+      pop_array();
+      push_int();
+      break;
+    }
+  case Bytecodes::_astore:   store_local_object(str->get_index());  break;
+  case Bytecodes::_astore_0: store_local_object(0);                 break;
+  case Bytecodes::_astore_1: store_local_object(1);                 break;
+  case Bytecodes::_astore_2: store_local_object(2);                 break;
+  case Bytecodes::_astore_3: store_local_object(3);                 break;
 
-case Bytecodes::_d2f:
-  {
-    pop_double();
-    push_float();
-    break;
-  }
-case Bytecodes::_d2i:
-  {
-    pop_double();
-    push_int();
-    break;
-  }
-case Bytecodes::_d2l:
-  {
-    pop_double();
-    push_long();
-    break;
-  }
-case Bytecodes::_dadd:
-case Bytecodes::_ddiv:
-case Bytecodes::_dmul:
-case Bytecodes::_drem:
-case Bytecodes::_dsub:
-  {
-    pop_double();
-    pop_double();
-    push_double();
-    break;
-  }
-case Bytecodes::_daload:
-  {
-    pop_int();
-    ciTypeArrayKlass* array_klass = pop_typeArray();
-    // Put assert here for right type?
-    push_double();
-    break;
-  }
-case Bytecodes::_dastore:
-  {
-    pop_double();
-    pop_int();
-    pop_typeArray();
-    // assert here?
-    break;
-  }
-case Bytecodes::_dcmpg:
-case Bytecodes::_dcmpl:
-  {
-    pop_double();
-    pop_double();
-    push_int();
-    break;
-  }
-case Bytecodes::_dconst_0:
-case Bytecodes::_dconst_1:
-  {
-    push_double();
-    break;
-  }
-case Bytecodes::_dload:   load_local_double(str->get_index());    break;
-case Bytecodes::_dload_0: load_local_double(0);                   break;
-case Bytecodes::_dload_1: load_local_double(1);                   break;
-case Bytecodes::_dload_2: load_local_double(2);                   break;
-case Bytecodes::_dload_3: load_local_double(3);                   break;
+  case Bytecodes::_athrow:
+    {
+      NEEDS_CLEANUP;
+      pop_object();
+      break;
+    }
+  case Bytecodes::_baload:
+  case Bytecodes::_caload:
+  case Bytecodes::_iaload:
+  case Bytecodes::_saload:
+    {
+      pop_int();
+      ciTypeArrayKlass* array_klass = pop_typeArray();
+      // Put assert here for right type?
+      push_int();
+      break;
+    }
+  case Bytecodes::_bastore:
+  case Bytecodes::_castore:
+  case Bytecodes::_iastore:
+  case Bytecodes::_sastore:
+    {
+      pop_int();
+      pop_int();
+      pop_typeArray();
+      // assert here?
+      break;
+    }
+  case Bytecodes::_bipush:
+  case Bytecodes::_iconst_m1:
+  case Bytecodes::_iconst_0:
+  case Bytecodes::_iconst_1:
+  case Bytecodes::_iconst_2:
+  case Bytecodes::_iconst_3:
+  case Bytecodes::_iconst_4:
+  case Bytecodes::_iconst_5:
+  case Bytecodes::_sipush:
+    {
+      push_int();
+      break;
+    }
+  case Bytecodes::_checkcast: do_checkcast(str);                  break;
 
-case Bytecodes::_dneg:
-  {
-    pop_double();
-    push_double();
-    break;
-  }
-case Bytecodes::_dreturn:
-  {
-    pop_double();
-    break;
-  }
-case Bytecodes::_dstore:   store_local_double(str->get_index());  break;
-case Bytecodes::_dstore_0: store_local_double(0);                 break;
-case Bytecodes::_dstore_1: store_local_double(1);                 break;
-case Bytecodes::_dstore_2: store_local_double(2);                 break;
-case Bytecodes::_dstore_3: store_local_double(3);                 break;
+  case Bytecodes::_d2f:
+    {
+      pop_double();
+      push_float();
+      break;
+    }
+  case Bytecodes::_d2i:
+    {
+      pop_double();
+      push_int();
+      break;
+    }
+  case Bytecodes::_d2l:
+    {
+      pop_double();
+      push_long();
+      break;
+    }
+  case Bytecodes::_dadd:
+  case Bytecodes::_ddiv:
+  case Bytecodes::_dmul:
+  case Bytecodes::_drem:
+  case Bytecodes::_dsub:
+    {
+      pop_double();
+      pop_double();
+      push_double();
+      break;
+    }
+  case Bytecodes::_daload:
+    {
+      pop_int();
+      ciTypeArrayKlass* array_klass = pop_typeArray();
+      // Put assert here for right type?
+      push_double();
+      break;
+    }
+  case Bytecodes::_dastore:
+    {
+      pop_double();
+      pop_int();
+      pop_typeArray();
+      // assert here?
+      break;
+    }
+  case Bytecodes::_dcmpg:
+  case Bytecodes::_dcmpl:
+    {
+      pop_double();
+      pop_double();
+      push_int();
+      break;
+    }
+  case Bytecodes::_dconst_0:
+  case Bytecodes::_dconst_1:
+    {
+      push_double();
+      break;
+    }
+  case Bytecodes::_dload:   load_local_double(str->get_index());    break;
+  case Bytecodes::_dload_0: load_local_double(0);                   break;
+  case Bytecodes::_dload_1: load_local_double(1);                   break;
+  case Bytecodes::_dload_2: load_local_double(2);                   break;
+  case Bytecodes::_dload_3: load_local_double(3);                   break;
 
-case Bytecodes::_dup:
-  {
-    push(type_at_tos());
-    break;
-  }
-case Bytecodes::_dup_x1:
-  {
-    ciType* value1 = pop_value();
-    ciType* value2 = pop_value();
-    push(value1);
-    push(value2);
-    push(value1);
-    break;
-  }
-case Bytecodes::_dup_x2:
-  {
-    ciType* value1 = pop_value();
-    ciType* value2 = pop_value();
-    ciType* value3 = pop_value();
-    push(value1);
-    push(value3);
-    push(value2);
-    push(value1);
-    break;
-  }
-case Bytecodes::_dup2:
-  {
-    ciType* value1 = pop_value();
-    ciType* value2 = pop_value();
-    push(value2);
-    push(value1);
-    push(value2);
-    push(value1);
-    break;
-  }
-case Bytecodes::_dup2_x1:
-  {
-    ciType* value1 = pop_value();
-    ciType* value2 = pop_value();
-    ciType* value3 = pop_value();
-    push(value2);
-    push(value1);
-    push(value3);
-    push(value2);
-    push(value1);
-    break;
-  }
-case Bytecodes::_dup2_x2:
-  {
-    ciType* value1 = pop_value();
-    ciType* value2 = pop_value();
-    ciType* value3 = pop_value();
-    ciType* value4 = pop_value();
-    push(value2);
-    push(value1);
-    push(value4);
-    push(value3);
-    push(value2);
-    push(value1);
-    break;
-  }
-case Bytecodes::_f2d:
-  {
-    pop_float();
-    push_double();
-    break;
-  }
-case Bytecodes::_f2i:
-  {
-    pop_float();
-    push_int();
-    break;
-  }
-case Bytecodes::_f2l:
-  {
-    pop_float();
-    push_long();
-    break;
-  }
-case Bytecodes::_fadd:
-case Bytecodes::_fdiv:
-case Bytecodes::_fmul:
-case Bytecodes::_frem:
-case Bytecodes::_fsub:
-  {
-    pop_float();
-    pop_float();
-    push_float();
-    break;
-  }
-case Bytecodes::_faload:
-  {
-    pop_int();
-    ciTypeArrayKlass* array_klass = pop_typeArray();
-    // Put assert here.
-    push_float();
-    break;
-  }
-case Bytecodes::_fastore:
-  {
-    pop_float();
-    pop_int();
-    ciTypeArrayKlass* array_klass = pop_typeArray();
-    // Put assert here.
-    break;
-  }
-case Bytecodes::_fcmpg:
-case Bytecodes::_fcmpl:
-  {
-    pop_float();
-    pop_float();
-    push_int();
-    break;
-  }
-case Bytecodes::_fconst_0:
-case Bytecodes::_fconst_1:
-case Bytecodes::_fconst_2:
-  {
-    push_float();
-    break;
-  }
-case Bytecodes::_fload:   load_local_float(str->get_index());     break;
-case Bytecodes::_fload_0: load_local_float(0);                    break;
-case Bytecodes::_fload_1: load_local_float(1);                    break;
-case Bytecodes::_fload_2: load_local_float(2);                    break;
-case Bytecodes::_fload_3: load_local_float(3);                    break;
+  case Bytecodes::_dneg:
+    {
+      pop_double();
+      push_double();
+      break;
+    }
+  case Bytecodes::_dreturn:
+    {
+      pop_double();
+      break;
+    }
+  case Bytecodes::_dstore:   store_local_double(str->get_index());  break;
+  case Bytecodes::_dstore_0: store_local_double(0);                 break;
+  case Bytecodes::_dstore_1: store_local_double(1);                 break;
+  case Bytecodes::_dstore_2: store_local_double(2);                 break;
+  case Bytecodes::_dstore_3: store_local_double(3);                 break;
 
-case Bytecodes::_fneg:
-  {
-    pop_float();
-    push_float();
-    break;
-  }
-case Bytecodes::_freturn:
-  {
-    pop_float();
-    break;
-  }
-case Bytecodes::_fstore:    store_local_float(str->get_index());   break;
-case Bytecodes::_fstore_0:  store_local_float(0);                  break;
-case Bytecodes::_fstore_1:  store_local_float(1);                  break;
-case Bytecodes::_fstore_2:  store_local_float(2);                  break;
-case Bytecodes::_fstore_3:  store_local_float(3);                  break;
+  case Bytecodes::_dup:
+    {
+      push(type_at_tos());
+      break;
+    }
+  case Bytecodes::_dup_x1:
+    {
+      ciType* value1 = pop_value();
+      ciType* value2 = pop_value();
+      push(value1);
+      push(value2);
+      push(value1);
+      break;
+    }
+  case Bytecodes::_dup_x2:
+    {
+      ciType* value1 = pop_value();
+      ciType* value2 = pop_value();
+      ciType* value3 = pop_value();
+      push(value1);
+      push(value3);
+      push(value2);
+      push(value1);
+      break;
+    }
+  case Bytecodes::_dup2:
+    {
+      ciType* value1 = pop_value();
+      ciType* value2 = pop_value();
+      push(value2);
+      push(value1);
+      push(value2);
+      push(value1);
+      break;
+    }
+  case Bytecodes::_dup2_x1:
+    {
+      ciType* value1 = pop_value();
+      ciType* value2 = pop_value();
+      ciType* value3 = pop_value();
+      push(value2);
+      push(value1);
+      push(value3);
+      push(value2);
+      push(value1);
+      break;
+    }
+  case Bytecodes::_dup2_x2:
+    {
+      ciType* value1 = pop_value();
+      ciType* value2 = pop_value();
+      ciType* value3 = pop_value();
+      ciType* value4 = pop_value();
+      push(value2);
+      push(value1);
+      push(value4);
+      push(value3);
+      push(value2);
+      push(value1);
+      break;
+    }
+  case Bytecodes::_f2d:
+    {
+      pop_float();
+      push_double();
+      break;
+    }
+  case Bytecodes::_f2i:
+    {
+      pop_float();
+      push_int();
+      break;
+    }
+  case Bytecodes::_f2l:
+    {
+      pop_float();
+      push_long();
+      break;
+    }
+  case Bytecodes::_fadd:
+  case Bytecodes::_fdiv:
+  case Bytecodes::_fmul:
+  case Bytecodes::_frem:
+  case Bytecodes::_fsub:
+    {
+      pop_float();
+      pop_float();
+      push_float();
+      break;
+    }
+  case Bytecodes::_faload:
+    {
+      pop_int();
+      ciTypeArrayKlass* array_klass = pop_typeArray();
+      // Put assert here.
+      push_float();
+      break;
+    }
+  case Bytecodes::_fastore:
+    {
+      pop_float();
+      pop_int();
+      ciTypeArrayKlass* array_klass = pop_typeArray();
+      // Put assert here.
+      break;
+    }
+  case Bytecodes::_fcmpg:
+  case Bytecodes::_fcmpl:
+    {
+      pop_float();
+      pop_float();
+      push_int();
+      break;
+    }
+  case Bytecodes::_fconst_0:
+  case Bytecodes::_fconst_1:
+  case Bytecodes::_fconst_2:
+    {
+      push_float();
+      break;
+    }
+  case Bytecodes::_fload:   load_local_float(str->get_index());     break;
+  case Bytecodes::_fload_0: load_local_float(0);                    break;
+  case Bytecodes::_fload_1: load_local_float(1);                    break;
+  case Bytecodes::_fload_2: load_local_float(2);                    break;
+  case Bytecodes::_fload_3: load_local_float(3);                    break;
 
-case Bytecodes::_getfield:  do_getfield(str);                      break;
-case Bytecodes::_getstatic: do_getstatic(str);                     break;
+  case Bytecodes::_fneg:
+    {
+      pop_float();
+      push_float();
+      break;
+    }
+  case Bytecodes::_freturn:
+    {
+      pop_float();
+      break;
+    }
+  case Bytecodes::_fstore:    store_local_float(str->get_index());   break;
+  case Bytecodes::_fstore_0:  store_local_float(0);                  break;
+  case Bytecodes::_fstore_1:  store_local_float(1);                  break;
+  case Bytecodes::_fstore_2:  store_local_float(2);                  break;
+  case Bytecodes::_fstore_3:  store_local_float(3);                  break;
 
-case Bytecodes::_goto:
-case Bytecodes::_goto_w:
-case Bytecodes::_nop:
-case Bytecodes::_return:
-  {
-    // do nothing.
-    break;
-  }
-case Bytecodes::_i2b:
-case Bytecodes::_i2c:
-case Bytecodes::_i2s:
-case Bytecodes::_ineg:
-  {
-    pop_int();
-    push_int();
-    break;
-  }
-case Bytecodes::_i2d:
-  {
-    pop_int();
-    push_double();
-    break;
-  }
-case Bytecodes::_i2f:
-  {
-    pop_int();
-    push_float();
-    break;
-  }
-case Bytecodes::_i2l:
-  {
-    pop_int();
-    push_long();
-    break;
-  }
-case Bytecodes::_iadd:
-case Bytecodes::_iand:
-case Bytecodes::_idiv:
-case Bytecodes::_imul:
-case Bytecodes::_ior:
-case Bytecodes::_irem:
-case Bytecodes::_ishl:
-case Bytecodes::_ishr:
-case Bytecodes::_isub:
-case Bytecodes::_iushr:
-case Bytecodes::_ixor:
-  {
-    pop_int();
-    pop_int();
-    push_int();
-    break;
-  }
-case Bytecodes::_if_acmpeq:
-case Bytecodes::_if_acmpne:
-  {
-    pop_object();
-    pop_object();
-    break;
-  }
-case Bytecodes::_if_icmpeq:
-case Bytecodes::_if_icmpge:
-case Bytecodes::_if_icmpgt:
-case Bytecodes::_if_icmple:
-case Bytecodes::_if_icmplt:
-case Bytecodes::_if_icmpne:
-  {
-    pop_int();
-    pop_int();
-    break;
-  }
-case Bytecodes::_ifeq:
-case Bytecodes::_ifle:
-case Bytecodes::_iflt:
-case Bytecodes::_ifge:
-case Bytecodes::_ifgt:
-case Bytecodes::_ifne:
-case Bytecodes::_ireturn:
-case Bytecodes::_lookupswitch:
-case Bytecodes::_tableswitch:
-  {
-    pop_int();
-    break;
-  }
-case Bytecodes::_iinc:
-  {
-    int lnum = str->get_index();
-    check_int(local(lnum));
-    store_to_local(lnum);
-    break;
-  }
-case Bytecodes::_iload:   load_local_int(str->get_index()); break;
-case Bytecodes::_iload_0: load_local_int(0);                      break;
-case Bytecodes::_iload_1: load_local_int(1);                      break;
-case Bytecodes::_iload_2: load_local_int(2);                      break;
-case Bytecodes::_iload_3: load_local_int(3);                      break;
+  case Bytecodes::_getfield:  do_getfield(str);                      break;
+  case Bytecodes::_getstatic: do_getstatic(str);                     break;
 
-case Bytecodes::_instanceof:
-  {
-    // Check for uncommon trap:
-    do_checkcast(str);
-    pop_object();
-    push_int();
-    break;
-  }
-case Bytecodes::_invokeinterface: do_invoke(str, true);           break;
-case Bytecodes::_invokespecial:   do_invoke(str, true);           break;
-case Bytecodes::_invokestatic:    do_invoke(str, false);          break;
-case Bytecodes::_invokevirtual:   do_invoke(str, true);           break;
-case Bytecodes::_invokedynamic:   do_invoke(str, false);          break;
+  case Bytecodes::_goto:
+  case Bytecodes::_goto_w:
+  case Bytecodes::_nop:
+  case Bytecodes::_return:
+    {
+      // do nothing.
+      break;
+    }
+  case Bytecodes::_i2b:
+  case Bytecodes::_i2c:
+  case Bytecodes::_i2s:
+  case Bytecodes::_ineg:
+    {
+      pop_int();
+      push_int();
+      break;
+    }
+  case Bytecodes::_i2d:
+    {
+      pop_int();
+      push_double();
+      break;
+    }
+  case Bytecodes::_i2f:
+    {
+      pop_int();
+      push_float();
+      break;
+    }
+  case Bytecodes::_i2l:
+    {
+      pop_int();
+      push_long();
+      break;
+    }
+  case Bytecodes::_iadd:
+  case Bytecodes::_iand:
+  case Bytecodes::_idiv:
+  case Bytecodes::_imul:
+  case Bytecodes::_ior:
+  case Bytecodes::_irem:
+  case Bytecodes::_ishl:
+  case Bytecodes::_ishr:
+  case Bytecodes::_isub:
+  case Bytecodes::_iushr:
+  case Bytecodes::_ixor:
+    {
+      pop_int();
+      pop_int();
+      push_int();
+      break;
+    }
+  case Bytecodes::_if_acmpeq:
+  case Bytecodes::_if_acmpne:
+    {
+      pop_object();
+      pop_object();
+      break;
+    }
+  case Bytecodes::_if_icmpeq:
+  case Bytecodes::_if_icmpge:
+  case Bytecodes::_if_icmpgt:
+  case Bytecodes::_if_icmple:
+  case Bytecodes::_if_icmplt:
+  case Bytecodes::_if_icmpne:
+    {
+      pop_int();
+      pop_int();
+      break;
+    }
+  case Bytecodes::_ifeq:
+  case Bytecodes::_ifle:
+  case Bytecodes::_iflt:
+  case Bytecodes::_ifge:
+  case Bytecodes::_ifgt:
+  case Bytecodes::_ifne:
+  case Bytecodes::_ireturn:
+  case Bytecodes::_lookupswitch:
+  case Bytecodes::_tableswitch:
+    {
+      pop_int();
+      break;
+    }
+  case Bytecodes::_iinc:
+    {
+      int lnum = str->get_index();
+      check_int(local(lnum));
+      store_to_local(lnum);
+      break;
+    }
+  case Bytecodes::_iload:   load_local_int(str->get_index()); break;
+  case Bytecodes::_iload_0: load_local_int(0);                      break;
+  case Bytecodes::_iload_1: load_local_int(1);                      break;
+  case Bytecodes::_iload_2: load_local_int(2);                      break;
+  case Bytecodes::_iload_3: load_local_int(3);                      break;
 
-case Bytecodes::_istore:   store_local_int(str->get_index());     break;
-case Bytecodes::_istore_0: store_local_int(0);                    break;
-case Bytecodes::_istore_1: store_local_int(1);                    break;
-case Bytecodes::_istore_2: store_local_int(2);                    break;
-case Bytecodes::_istore_3: store_local_int(3);                    break;
+  case Bytecodes::_instanceof:
+    {
+      // Check for uncommon trap:
+      do_checkcast(str);
+      pop_object();
+      push_int();
+      break;
+    }
+  case Bytecodes::_invokeinterface: do_invoke(str, true);           break;
+  case Bytecodes::_invokespecial:   do_invoke(str, true);           break;
+  case Bytecodes::_invokestatic:    do_invoke(str, false);          break;
+  case Bytecodes::_invokevirtual:   do_invoke(str, true);           break;
+  case Bytecodes::_invokedynamic:   do_invoke(str, false);          break;
 
-case Bytecodes::_jsr:
-case Bytecodes::_jsr_w: do_jsr(str);                              break;
+  case Bytecodes::_istore:   store_local_int(str->get_index());     break;
+  case Bytecodes::_istore_0: store_local_int(0);                    break;
+  case Bytecodes::_istore_1: store_local_int(1);                    break;
+  case Bytecodes::_istore_2: store_local_int(2);                    break;
+  case Bytecodes::_istore_3: store_local_int(3);                    break;
 
-case Bytecodes::_l2d:
-  {
-    pop_long();
-    push_double();
-    break;
-  }
-case Bytecodes::_l2f:
-  {
-    pop_long();
-    push_float();
-    break;
-  }
-case Bytecodes::_l2i:
-  {
-    pop_long();
-    push_int();
-    break;
-  }
-case Bytecodes::_ladd:
-case Bytecodes::_land:
-case Bytecodes::_ldiv:
-case Bytecodes::_lmul:
-case Bytecodes::_lor:
-case Bytecodes::_lrem:
-case Bytecodes::_lsub:
-case Bytecodes::_lxor:
-  {
-    pop_long();
-    pop_long();
-    push_long();
-    break;
-  }
-case Bytecodes::_laload:
-  {
-    pop_int();
-    ciTypeArrayKlass* array_klass = pop_typeArray();
-    // Put assert here for right type?
-    push_long();
-    break;
-  }
-case Bytecodes::_lastore:
-  {
-    pop_long();
-    pop_int();
-    pop_typeArray();
-    // assert here?
-    break;
-  }
-case Bytecodes::_lcmp:
-  {
-    pop_long();
-    pop_long();
-    push_int();
-    break;
-  }
-case Bytecodes::_lconst_0:
-case Bytecodes::_lconst_1:
-  {
-    push_long();
-    break;
-  }
-case Bytecodes::_ldc:
-case Bytecodes::_ldc_w:
-case Bytecodes::_ldc2_w:
-  {
-    do_ldc(str);
-    break;
+  case Bytecodes::_jsr:
+  case Bytecodes::_jsr_w: do_jsr(str);                              break;
+
+  case Bytecodes::_l2d:
+    {
+      pop_long();
+      push_double();
+      break;
+    }
+  case Bytecodes::_l2f:
+    {
+      pop_long();
+      push_float();
+      break;
+    }
+  case Bytecodes::_l2i:
+    {
+      pop_long();
+      push_int();
+      break;
+    }
+  case Bytecodes::_ladd:
+  case Bytecodes::_land:
+  case Bytecodes::_ldiv:
+  case Bytecodes::_lmul:
+  case Bytecodes::_lor:
+  case Bytecodes::_lrem:
+  case Bytecodes::_lsub:
+  case Bytecodes::_lxor:
+    {
+      pop_long();
+      pop_long();
+      push_long();
+      break;
+    }
+  case Bytecodes::_laload:
+    {
+      pop_int();
+      ciTypeArrayKlass* array_klass = pop_typeArray();
+      // Put assert here for right type?
+      push_long();
+      break;
+    }
+  case Bytecodes::_lastore:
+    {
+      pop_long();
+      pop_int();
+      pop_typeArray();
+      // assert here?
+      break;
+    }
+  case Bytecodes::_lcmp:
+    {
+      pop_long();
+      pop_long();
+      push_int();
+      break;
+    }
+  case Bytecodes::_lconst_0:
+  case Bytecodes::_lconst_1:
+    {
+      push_long();
+      break;
+    }
+  case Bytecodes::_ldc:
+  case Bytecodes::_ldc_w:
+  case Bytecodes::_ldc2_w:
+    {
+      do_ldc(str);
+      break;
+    }
+
+  case Bytecodes::_lload:   load_local_long(str->get_index());      break;
+  case Bytecodes::_lload_0: load_local_long(0);                     break;
+  case Bytecodes::_lload_1: load_local_long(1);                     break;
+  case Bytecodes::_lload_2: load_local_long(2);                     break;
+  case Bytecodes::_lload_3: load_local_long(3);                     break;
+
+  case Bytecodes::_lneg:
+    {
+      pop_long();
+      push_long();
+      break;
+    }
+  case Bytecodes::_lreturn:
+    {
+      pop_long();
+      break;
+    }
+  case Bytecodes::_lshl:
+  case Bytecodes::_lshr:
+  case Bytecodes::_lushr:
+    {
+      pop_int();
+      pop_long();
+      push_long();
+      break;
+    }
+  case Bytecodes::_lstore:   store_local_long(str->get_index());    break;
+  case Bytecodes::_lstore_0: store_local_long(0);                   break;
+  case Bytecodes::_lstore_1: store_local_long(1);                   break;
+  case Bytecodes::_lstore_2: store_local_long(2);                   break;
+  case Bytecodes::_lstore_3: store_local_long(3);                   break;
+
+  case Bytecodes::_multianewarray: do_multianewarray(str);          break;
+
+  case Bytecodes::_new:      do_new(str);                           break;
+
+  case Bytecodes::_newarray: do_newarray(str);                      break;
+
+  case Bytecodes::_pop:
+    {
+      pop();
+      break;
+    }
+  case Bytecodes::_pop2:
+    {
+      pop();
+      pop();
+      break;
+    }
+
+  case Bytecodes::_putfield:       do_putfield(str);                 break;
+  case Bytecodes::_putstatic:      do_putstatic(str);                break;
+
+  case Bytecodes::_ret: do_ret(str);                                 break;
+
+  case Bytecodes::_swap:
+    {
+      ciType* value1 = pop_value();
+      ciType* value2 = pop_value();
+      push(value1);
+      push(value2);
+      break;
+    }
+  case Bytecodes::_wide:
+  default:
+    {
+      // The iterator should skip this.
+      ShouldNotReachHere();
+      break;
+    }
   }
 
-case Bytecodes::_lload:   load_local_long(str->get_index());      break;
-case Bytecodes::_lload_0: load_local_long(0);                     break;
-case Bytecodes::_lload_1: load_local_long(1);                     break;
-case Bytecodes::_lload_2: load_local_long(2);                     break;
-case Bytecodes::_lload_3: load_local_long(3);                     break;
-
-case Bytecodes::_lneg:
-  {
-    pop_long();
-    push_long();
-    break;
-  }
-case Bytecodes::_lreturn:
-  {
-    pop_long();
-    break;
-  }
-case Bytecodes::_lshl:
-case Bytecodes::_lshr:
-case Bytecodes::_lushr:
-  {
-    pop_int();
-    pop_long();
-    push_long();
-    break;
-  }
-case Bytecodes::_lstore:   store_local_long(str->get_index());    break;
-case Bytecodes::_lstore_0: store_local_long(0);                   break;
-case Bytecodes::_lstore_1: store_local_long(1);                   break;
-case Bytecodes::_lstore_2: store_local_long(2);                   break;
-case Bytecodes::_lstore_3: store_local_long(3);                   break;
-
-case Bytecodes::_multianewarray: do_multianewarray(str);          break;
-
-case Bytecodes::_new:      do_new(str);                           break;
-
-case Bytecodes::_newarray: do_newarray(str);                      break;
-
-case Bytecodes::_pop:
-  {
-    pop();
-    break;
-  }
-case Bytecodes::_pop2:
-  {
-    pop();
-    pop();
-    break;
+  if (CITraceTypeFlow) {
+    print_on(tty);
   }
 
-case Bytecodes::_putfield:       do_putfield(str);                 break;
-case Bytecodes::_putstatic:      do_putstatic(str);                break;
-
-case Bytecodes::_ret: do_ret(str);                                 break;
-
-case Bytecodes::_swap:
-  {
-    ciType* value1 = pop_value();
-    ciType* value2 = pop_value();
-    push(value1);
-    push(value2);
-    break;
-  }
-case Bytecodes::_wide:
-default:
-  {
-    // The iterator should skip this.
-    ShouldNotReachHere();
-    break;
-  }
-}
-
-if (CITraceTypeFlow) {
-  print_on(tty);
-}
-
-return (_trap_bci != -1);
+  return (_trap_bci != -1);
 }
 
 #ifndef PRODUCT
 // ------------------------------------------------------------------
 // ciTypeFlow::StateVector::print_cell_on
 void ciTypeFlow::StateVector::print_cell_on(outputStream* st, Cell c) const {
-ciType* type = type_at(c);
-if (type == top_type()) {
-  st->print("top");
-} else if (type == bottom_type()) {
-  st->print("bottom");
-} else if (type == null_type()) {
-  st->print("null");
-} else if (type == long2_type()) {
-  st->print("long2");
-} else if (type == double2_type()) {
-  st->print("double2");
-} else if (is_int(type)) {
-  st->print("int");
-} else if (is_long(type)) {
-  st->print("long");
-} else if (is_float(type)) {
-  st->print("float");
-} else if (is_double(type)) {
-  st->print("double");
-} else if (type->is_return_address()) {
-  st->print("address(%d)", type->as_return_address()->bci());
-} else {
-  if (type->is_klass()) {
-    type->as_klass()->name()->print_symbol_on(st);
+  ciType* type = type_at(c);
+  if (type == top_type()) {
+    st->print("top");
+  } else if (type == bottom_type()) {
+    st->print("bottom");
+  } else if (type == null_type()) {
+    st->print("null");
+  } else if (type == long2_type()) {
+    st->print("long2");
+  } else if (type == double2_type()) {
+    st->print("double2");
+  } else if (is_int(type)) {
+    st->print("int");
+  } else if (is_long(type)) {
+    st->print("long");
+  } else if (is_float(type)) {
+    st->print("float");
+  } else if (is_double(type)) {
+    st->print("double");
+  } else if (type->is_return_address()) {
+    st->print("address(%d)", type->as_return_address()->bci());
   } else {
-    st->print("UNEXPECTED TYPE");
-    type->print();
+    if (type->is_klass()) {
+      type->as_klass()->name()->print_symbol_on(st);
+    } else {
+      st->print("UNEXPECTED TYPE");
+      type->print();
+    }
   }
-}
 }
 
 // ------------------------------------------------------------------
 // ciTypeFlow::StateVector::print_on
 void ciTypeFlow::StateVector::print_on(outputStream* st) const {
-int num_locals   = _outer->max_locals();
-int num_stack    = stack_size();
-int num_monitors = monitor_count();
-st->print_cr("  State : locals %d, stack %d, monitors %d", num_locals, num_stack, num_monitors);
-if (num_stack >= 0) {
-  int i;
-  for (i = 0; i < num_locals; i++) {
-    st->print("    local %2d : ", i);
-    print_cell_on(st, local(i));
-    st->cr();
+  int num_locals   = _outer->max_locals();
+  int num_stack    = stack_size();
+  int num_monitors = monitor_count();
+  st->print_cr("  State : locals %d, stack %d, monitors %d", num_locals, num_stack, num_monitors);
+  if (num_stack >= 0) {
+    int i;
+    for (i = 0; i < num_locals; i++) {
+      st->print("    local %2d : ", i);
+      print_cell_on(st, local(i));
+      st->cr();
+    }
+    for (i = 0; i < num_stack; i++) {
+      st->print("    stack %2d : ", i);
+      print_cell_on(st, stack(i));
+      st->cr();
+    }
   }
-  for (i = 0; i < num_stack; i++) {
-    st->print("    stack %2d : ", i);
-    print_cell_on(st, stack(i));
-    st->cr();
-  }
-}
 }
 #endif
 
@@ -1554,39 +1554,39 @@ if (num_stack >= 0) {
 // ciTypeFlow::SuccIter::next
 //
 void ciTypeFlow::SuccIter::next() {
-int succ_ct = _pred->successors()->length();
-int next = _index + 1;
-if (next < succ_ct) {
-  _index = next;
-  _succ = _pred->successors()->at(next);
-  return;
-}
-for (int i = next - succ_ct; i < _pred->exceptions()->length(); i++) {
-  // Do not compile any code for unloaded exception types.
-  // Following compiler passes are responsible for doing this also.
-  ciInstanceKlass* exception_klass = _pred->exc_klasses()->at(i);
-  if (exception_klass->is_loaded()) {
+  int succ_ct = _pred->successors()->length();
+  int next = _index + 1;
+  if (next < succ_ct) {
     _index = next;
-    _succ = _pred->exceptions()->at(i);
+    _succ = _pred->successors()->at(next);
     return;
   }
-  next++;
-}
-_index = -1;
-_succ = nullptr;
+  for (int i = next - succ_ct; i < _pred->exceptions()->length(); i++) {
+    // Do not compile any code for unloaded exception types.
+    // Following compiler passes are responsible for doing this also.
+    ciInstanceKlass* exception_klass = _pred->exc_klasses()->at(i);
+    if (exception_klass->is_loaded()) {
+      _index = next;
+      _succ = _pred->exceptions()->at(i);
+      return;
+    }
+    next++;
+  }
+  _index = -1;
+  _succ = nullptr;
 }
 
 // ------------------------------------------------------------------
 // ciTypeFlow::SuccIter::set_succ
 //
 void ciTypeFlow::SuccIter::set_succ(Block* succ) {
-int succ_ct = _pred->successors()->length();
-if (_index < succ_ct) {
-  _pred->successors()->at_put(_index, succ);
-} else {
-  int idx = _index - succ_ct;
-  _pred->exceptions()->at_put(idx, succ);
-}
+  int succ_ct = _pred->successors()->length();
+  if (_index < succ_ct) {
+    _pred->successors()->at_put(_index, succ);
+  } else {
+    int idx = _index - succ_ct;
+    _pred->exceptions()->at_put(idx, succ);
+  }
 }
 
 // ciTypeFlow::DispatchInfo
@@ -1595,11 +1595,10 @@ if (_index < succ_ct) {
 
 // ------------------------------------------------------------------
 // ciTypeFlow::DispatchInfo::DispatchInfo
-
 ciTypeFlow::DispatchInfo::DispatchInfo(int target, Block* src, Block* trgt) {
-_target = target;
-_src = src;
-_target_block = trgt;
+  _target = target;
+  _src = src;
+  _target_block = trgt;
 }
 
 
@@ -1611,66 +1610,66 @@ _target_block = trgt;
 // ------------------------------------------------------------------
 // ciTypeFlow::Block::Block
 ciTypeFlow::Block::Block(ciTypeFlow* outer,
-                       ciBlock *ciblk,
-                       ciTypeFlow::JsrSet* jsrs) : _predecessors(outer->arena(), 1, 0, nullptr) {
-_ciblock = ciblk;
-_exceptions = nullptr;
-_exc_klasses = nullptr;
-_successors = nullptr;
-_is_reachable = true;
-_is_dispatch_target = false;
-_dispatchTargets = nullptr;
-_irreducible_copy = false;
-_state = new (outer->arena()) StateVector(outer);
-JsrSet* new_jsrs =
-  new (outer->arena()) JsrSet(outer->arena(), jsrs->size());
-jsrs->copy_into(new_jsrs);
-_jsrs = new_jsrs;
-_next = nullptr;
-_on_work_list = false;
-_backedge_copy = false;
-_has_monitorenter = false;
-_trap_bci = -1;
-_trap_index = 0;
-df_init();
+                         ciBlock *ciblk,
+                         ciTypeFlow::JsrSet* jsrs) : _predecessors(outer->arena(), 1, 0, nullptr) {
+  _ciblock = ciblk;
+  _exceptions = nullptr;
+  _exc_klasses = nullptr;
+  _successors = nullptr;
+  _is_reachable = true;
+  _is_dispatch_target = false;
+  _dispatchTargets = nullptr;
+  _irreducible_copy = false;
+  _state = new (outer->arena()) StateVector(outer);
+  JsrSet* new_jsrs =
+    new (outer->arena()) JsrSet(outer->arena(), jsrs->size());
+  jsrs->copy_into(new_jsrs);
+  _jsrs = new_jsrs;
+  _next = nullptr;
+  _on_work_list = false;
+  _backedge_copy = false;
+  _has_monitorenter = false;
+  _trap_bci = -1;
+  _trap_index = 0;
+  df_init();
 
-if (CITraceTypeFlow) {
-  tty->print_cr(">> Created new block");
-  print_on(tty);
-}
+  if (CITraceTypeFlow) {
+    tty->print_cr(">> Created new block");
+    print_on(tty);
+  }
 
-assert(this->outer() == outer, "outer link set up");
-assert(!outer->have_block_count(), "must not have mapped blocks yet");
+  assert(this->outer() == outer, "outer link set up");
+  assert(!outer->have_block_count(), "must not have mapped blocks yet");
 }
 
 // ------------------------------------------------------------------
 // ciTypeFlow::Block::df_init
 void ciTypeFlow::Block::df_init() {
-_pre_order = -1; assert(!has_pre_order(), "");
-_post_order = -1; assert(!has_post_order(), "");
-_loop = nullptr;
-_irreducible_loop_head = false;
-_irreducible_loop_secondary_entry = false;
-_rpo_next = nullptr;
+  _pre_order = -1; assert(!has_pre_order(), "");
+  _post_order = -1; assert(!has_post_order(), "");
+  _loop = nullptr;
+  _irreducible_loop_head = false;
+  _irreducible_loop_secondary_entry = false;
+  _rpo_next = nullptr;
 }
 
 void ciTypeFlow::Block::clone(Block* blk) {
-blk->copy_state_into(_state);
-successors(blk->successors());
-ciblock()->set_control_bci(blk->control());
+  blk->copy_state_into(_state);
+  successors(blk->successors());
+  ciblock()->set_control_bci(blk->control());
 }
 
 GrowableArray<ciTypeFlow::Block*>* ciTypeFlow::Block::successors(GrowableArray<Block*>* target) {
-ciTypeFlow* analyzer = outer();
-Arena* arena = analyzer->arena();
-if (_successors == nullptr) {
-    _successors = new (arena) GrowableArray<Block*>(arena, 1, 0, nullptr);
-}
+  ciTypeFlow* analyzer = outer();
+  Arena* arena = analyzer->arena();
+  if (_successors == nullptr) {
+      _successors = new (arena) GrowableArray<Block*>(arena, 1, 0, nullptr);
+  }
 
-for (int i = 0; i < target->length(); ++i){
-  _successors->push(target->at(i));
-}
-return _successors;
+  for (int i = 0; i < target->length(); ++i){
+    _successors->push(target->at(i));
+  }
+  return _successors;
 }
 
 
@@ -1680,159 +1679,159 @@ return _successors;
 // Get the successors for this Block.
 GrowableArray<ciTypeFlow::Block*>*
 ciTypeFlow::Block::successors(ciBytecodeStream* str,
-                            ciTypeFlow::StateVector* state,
-                            ciTypeFlow::JsrSet* jsrs) {
-if (_successors == nullptr) {
-  if (CITraceTypeFlow) {
-    tty->print(">> Computing successors for block ");
-    print_value_on(tty);
-    tty->cr();
-  }
-
-  ciTypeFlow* analyzer = outer();
-  Arena* arena = analyzer->arena();
-  Block* block = nullptr;
-  bool has_successor = !has_trap() &&
-                       (control() != ciBlock::fall_through_bci || limit() < analyzer->code_size());
-  if (!has_successor) {
-    _successors =
-      new (arena) GrowableArray<Block*>(arena, 1, 0, nullptr);
-    // No successors
-  } else if (control() == ciBlock::fall_through_bci) {
-    assert(str->cur_bci() == limit(), "bad block end");
-    // This block simply falls through to the next.
-    _successors =
-      new (arena) GrowableArray<Block*>(arena, 1, 0, nullptr);
-
-    Block* block = analyzer->block_at(limit(), _jsrs);
-    assert(_successors->length() == FALL_THROUGH, "");
-    _successors->append(block);
-  } else {
-    int current_bci = str->cur_bci();
-    int next_bci = str->next_bci();
-    int branch_bci = -1;
-    Block* target = nullptr;
-    assert(str->next_bci() == limit(), "bad block end");
-    // This block is not a simple fall-though.  Interpret
-    // the current bytecode to find our successors.
-    switch (str->cur_bc()) {
-    case Bytecodes::_ifeq:         case Bytecodes::_ifne:
-    case Bytecodes::_iflt:         case Bytecodes::_ifge:
-    case Bytecodes::_ifgt:         case Bytecodes::_ifle:
-    case Bytecodes::_if_icmpeq:    case Bytecodes::_if_icmpne:
-    case Bytecodes::_if_icmplt:    case Bytecodes::_if_icmpge:
-    case Bytecodes::_if_icmpgt:    case Bytecodes::_if_icmple:
-    case Bytecodes::_if_acmpeq:    case Bytecodes::_if_acmpne:
-    case Bytecodes::_ifnull:       case Bytecodes::_ifnonnull:
-      // Our successors are the branch target and the next bci.
-      branch_bci = str->get_dest();
-      _successors =
-        new (arena) GrowableArray<Block*>(arena, 2, 0, nullptr);
-      assert(_successors->length() == IF_NOT_TAKEN, "");
-      _successors->append(analyzer->block_at(next_bci, jsrs));
-      assert(_successors->length() == IF_TAKEN, "");
-      _successors->append(analyzer->block_at(branch_bci, jsrs));
-      break;
-
-    case Bytecodes::_goto:
-      branch_bci = str->get_dest();
-      _successors =
-        new (arena) GrowableArray<Block*>(arena, 1, 0, nullptr);
-      assert(_successors->length() == GOTO_TARGET, "");
-      _successors->append(analyzer->block_at(branch_bci, jsrs));
-      break;
-
-    case Bytecodes::_jsr:
-      branch_bci = str->get_dest();
-      _successors =
-        new (arena) GrowableArray<Block*>(arena, 1, 0, nullptr);
-      assert(_successors->length() == GOTO_TARGET, "");
-      _successors->append(analyzer->block_at(branch_bci, jsrs));
-      break;
-
-    case Bytecodes::_goto_w:
-    case Bytecodes::_jsr_w:
-      _successors =
-        new (arena) GrowableArray<Block*>(arena, 1, 0, nullptr);
-      assert(_successors->length() == GOTO_TARGET, "");
-      _successors->append(analyzer->block_at(str->get_far_dest(), jsrs));
-      break;
-
-    case Bytecodes::_tableswitch:  {
-      Bytecode_tableswitch tableswitch(str);
-
-      int len = tableswitch.length();
-      _successors =
-        new (arena) GrowableArray<Block*>(arena, len+1, 0, nullptr);
-      int bci = current_bci + tableswitch.default_offset();
-      Block* block = analyzer->block_at(bci, jsrs);
-      assert(_successors->length() == SWITCH_DEFAULT, "");
-      _successors->append(block);
-      while (--len >= 0) {
-        int bci = current_bci + tableswitch.dest_offset_at(len);
-        block = analyzer->block_at(bci, jsrs);
-        assert(_successors->length() >= SWITCH_CASES, "");
-        _successors->append_if_missing(block);
-      }
-      break;
+                              ciTypeFlow::StateVector* state,
+                              ciTypeFlow::JsrSet* jsrs) {
+  if (_successors == nullptr) {
+    if (CITraceTypeFlow) {
+      tty->print(">> Computing successors for block ");
+      print_value_on(tty);
+      tty->cr();
     }
 
-    case Bytecodes::_lookupswitch: {
-      Bytecode_lookupswitch lookupswitch(str);
-
-      int npairs = lookupswitch.number_of_pairs();
-      _successors =
-        new (arena) GrowableArray<Block*>(arena, npairs+1, 0, nullptr);
-      int bci = current_bci + lookupswitch.default_offset();
-      Block* block = analyzer->block_at(bci, jsrs);
-      assert(_successors->length() == SWITCH_DEFAULT, "");
-      _successors->append(block);
-      while(--npairs >= 0) {
-        LookupswitchPair pair = lookupswitch.pair_at(npairs);
-        int bci = current_bci + pair.offset();
-        Block* block = analyzer->block_at(bci, jsrs);
-        assert(_successors->length() >= SWITCH_CASES, "");
-        _successors->append_if_missing(block);
-      }
-      break;
-    }
-
-    case Bytecodes::_athrow:     case Bytecodes::_ireturn:
-    case Bytecodes::_lreturn:    case Bytecodes::_freturn:
-    case Bytecodes::_dreturn:    case Bytecodes::_areturn:
-    case Bytecodes::_return:
+    ciTypeFlow* analyzer = outer();
+    Arena* arena = analyzer->arena();
+    Block* block = nullptr;
+    bool has_successor = !has_trap() &&
+                         (control() != ciBlock::fall_through_bci || limit() < analyzer->code_size());
+    if (!has_successor) {
       _successors =
         new (arena) GrowableArray<Block*>(arena, 1, 0, nullptr);
       // No successors
-      break;
-
-    case Bytecodes::_ret: {
+    } else if (control() == ciBlock::fall_through_bci) {
+      assert(str->cur_bci() == limit(), "bad block end");
+      // This block simply falls through to the next.
       _successors =
         new (arena) GrowableArray<Block*>(arena, 1, 0, nullptr);
 
-      Cell local = state->local(str->get_index());
-      ciType* return_address = state->type_at(local);
-      assert(return_address->is_return_address(), "verify: wrong type");
-      int bci = return_address->as_return_address()->bci();
-      assert(_successors->length() == GOTO_TARGET, "");
-      _successors->append(analyzer->block_at(bci, jsrs));
-      break;
+      Block* block = analyzer->block_at(limit(), _jsrs);
+      assert(_successors->length() == FALL_THROUGH, "");
+      _successors->append(block);
+    } else {
+      int current_bci = str->cur_bci();
+      int next_bci = str->next_bci();
+      int branch_bci = -1;
+      Block* target = nullptr;
+      assert(str->next_bci() == limit(), "bad block end");
+      // This block is not a simple fall-though.  Interpret
+      // the current bytecode to find our successors.
+      switch (str->cur_bc()) {
+      case Bytecodes::_ifeq:         case Bytecodes::_ifne:
+      case Bytecodes::_iflt:         case Bytecodes::_ifge:
+      case Bytecodes::_ifgt:         case Bytecodes::_ifle:
+      case Bytecodes::_if_icmpeq:    case Bytecodes::_if_icmpne:
+      case Bytecodes::_if_icmplt:    case Bytecodes::_if_icmpge:
+      case Bytecodes::_if_icmpgt:    case Bytecodes::_if_icmple:
+      case Bytecodes::_if_acmpeq:    case Bytecodes::_if_acmpne:
+      case Bytecodes::_ifnull:       case Bytecodes::_ifnonnull:
+        // Our successors are the branch target and the next bci.
+        branch_bci = str->get_dest();
+        _successors =
+          new (arena) GrowableArray<Block*>(arena, 2, 0, nullptr);
+        assert(_successors->length() == IF_NOT_TAKEN, "");
+        _successors->append(analyzer->block_at(next_bci, jsrs));
+        assert(_successors->length() == IF_TAKEN, "");
+        _successors->append(analyzer->block_at(branch_bci, jsrs));
+        break;
+
+      case Bytecodes::_goto:
+        branch_bci = str->get_dest();
+        _successors =
+          new (arena) GrowableArray<Block*>(arena, 1, 0, nullptr);
+        assert(_successors->length() == GOTO_TARGET, "");
+        _successors->append(analyzer->block_at(branch_bci, jsrs));
+        break;
+
+      case Bytecodes::_jsr:
+        branch_bci = str->get_dest();
+        _successors =
+          new (arena) GrowableArray<Block*>(arena, 1, 0, nullptr);
+        assert(_successors->length() == GOTO_TARGET, "");
+        _successors->append(analyzer->block_at(branch_bci, jsrs));
+        break;
+
+      case Bytecodes::_goto_w:
+      case Bytecodes::_jsr_w:
+        _successors =
+          new (arena) GrowableArray<Block*>(arena, 1, 0, nullptr);
+        assert(_successors->length() == GOTO_TARGET, "");
+        _successors->append(analyzer->block_at(str->get_far_dest(), jsrs));
+        break;
+
+      case Bytecodes::_tableswitch:  {
+        Bytecode_tableswitch tableswitch(str);
+
+        int len = tableswitch.length();
+        _successors =
+          new (arena) GrowableArray<Block*>(arena, len+1, 0, nullptr);
+        int bci = current_bci + tableswitch.default_offset();
+        Block* block = analyzer->block_at(bci, jsrs);
+        assert(_successors->length() == SWITCH_DEFAULT, "");
+        _successors->append(block);
+        while (--len >= 0) {
+          int bci = current_bci + tableswitch.dest_offset_at(len);
+          block = analyzer->block_at(bci, jsrs);
+          assert(_successors->length() >= SWITCH_CASES, "");
+          _successors->append_if_missing(block);
+        }
+        break;
+      }
+
+      case Bytecodes::_lookupswitch: {
+        Bytecode_lookupswitch lookupswitch(str);
+
+        int npairs = lookupswitch.number_of_pairs();
+        _successors =
+          new (arena) GrowableArray<Block*>(arena, npairs+1, 0, nullptr);
+        int bci = current_bci + lookupswitch.default_offset();
+        Block* block = analyzer->block_at(bci, jsrs);
+        assert(_successors->length() == SWITCH_DEFAULT, "");
+        _successors->append(block);
+        while(--npairs >= 0) {
+          LookupswitchPair pair = lookupswitch.pair_at(npairs);
+          int bci = current_bci + pair.offset();
+          Block* block = analyzer->block_at(bci, jsrs);
+          assert(_successors->length() >= SWITCH_CASES, "");
+          _successors->append_if_missing(block);
+        }
+        break;
+      }
+
+      case Bytecodes::_athrow:     case Bytecodes::_ireturn:
+      case Bytecodes::_lreturn:    case Bytecodes::_freturn:
+      case Bytecodes::_dreturn:    case Bytecodes::_areturn:
+      case Bytecodes::_return:
+        _successors =
+          new (arena) GrowableArray<Block*>(arena, 1, 0, nullptr);
+        // No successors
+        break;
+
+      case Bytecodes::_ret: {
+        _successors =
+          new (arena) GrowableArray<Block*>(arena, 1, 0, nullptr);
+
+        Cell local = state->local(str->get_index());
+        ciType* return_address = state->type_at(local);
+        assert(return_address->is_return_address(), "verify: wrong type");
+        int bci = return_address->as_return_address()->bci();
+        assert(_successors->length() == GOTO_TARGET, "");
+        _successors->append(analyzer->block_at(bci, jsrs));
+        break;
+      }
+
+      case Bytecodes::_wide:
+      default:
+        ShouldNotReachHere();
+        break;
+      }
     }
 
-    case Bytecodes::_wide:
-    default:
-      ShouldNotReachHere();
-      break;
+    // Set predecessor information
+    for (int i = 0; i < _successors->length(); i++) {
+      Block* block = _successors->at(i);
+      block->predecessors()->append(this);
     }
   }
-
-  // Set predecessor information
-  for (int i = 0; i < _successors->length(); i++) {
-    Block* block = _successors->at(i);
-    block->predecessors()->append(this);
-  }
-}
-return _successors;
+  return _successors;
 }
 
 // ------------------------------------------------------------------
@@ -1840,70 +1839,70 @@ return _successors;
 //
 // Compute the exceptional successors and types for this Block.
 void ciTypeFlow::Block::compute_exceptions() {
-assert(_exceptions == nullptr && _exc_klasses == nullptr, "repeat");
+  assert(_exceptions == nullptr && _exc_klasses == nullptr, "repeat");
 
-if (CITraceTypeFlow) {
-  tty->print(">> Computing exceptions for block ");
-  print_value_on(tty);
-  tty->cr();
-}
-
-ciTypeFlow* analyzer = outer();
-Arena* arena = analyzer->arena();
-
-// Any bci in the block will do.
-ciExceptionHandlerStream str(analyzer->method(), start());
-
-// Allocate our growable arrays.
-int exc_count = str.count();
-_exceptions = new (arena) GrowableArray<Block*>(arena, exc_count, 0, nullptr);
-_exc_klasses = new (arena) GrowableArray<ciInstanceKlass*>(arena, exc_count,
-                                                           0, nullptr);
-
-for ( ; !str.is_done(); str.next()) {
-  ciExceptionHandler* handler = str.handler();
-  int bci = handler->handler_bci();
-  ciInstanceKlass* klass = nullptr;
-  if (bci == -1) {
-    // There is no catch all.  It is possible to exit the method.
-    break;
+  if (CITraceTypeFlow) {
+    tty->print(">> Computing exceptions for block ");
+    print_value_on(tty);
+    tty->cr();
   }
-  if (handler->is_catch_all()) {
-    klass = analyzer->env()->Throwable_klass();
-  } else {
-    klass = handler->catch_klass();
+
+  ciTypeFlow* analyzer = outer();
+  Arena* arena = analyzer->arena();
+
+  // Any bci in the block will do.
+  ciExceptionHandlerStream str(analyzer->method(), start());
+
+  // Allocate our growable arrays.
+  int exc_count = str.count();
+  _exceptions = new (arena) GrowableArray<Block*>(arena, exc_count, 0, nullptr);
+  _exc_klasses = new (arena) GrowableArray<ciInstanceKlass*>(arena, exc_count,
+                                                             0, nullptr);
+
+  for ( ; !str.is_done(); str.next()) {
+    ciExceptionHandler* handler = str.handler();
+    int bci = handler->handler_bci();
+    ciInstanceKlass* klass = nullptr;
+    if (bci == -1) {
+      // There is no catch all.  It is possible to exit the method.
+      break;
+    }
+    if (handler->is_catch_all()) {
+      klass = analyzer->env()->Throwable_klass();
+    } else {
+      klass = handler->catch_klass();
+    }
+    Block* block = analyzer->block_at(bci, _jsrs);
+    _exceptions->append(block);
+    block->predecessors()->append(this);
+    _exc_klasses->append(klass);
   }
-  Block* block = analyzer->block_at(bci, _jsrs);
-  _exceptions->append(block);
-  block->predecessors()->append(this);
-  _exc_klasses->append(klass);
-}
 }
 
 // ------------------------------------------------------------------
 // ciTypeFlow::Block::set_backedge_copy
 // Use this only to make a pre-existing public block into a backedge copy.
 void ciTypeFlow::Block::set_backedge_copy(bool z) {
-assert(z || (z == is_backedge_copy()), "cannot make a backedge copy public");
-_backedge_copy = z;
+  assert(z || (z == is_backedge_copy()), "cannot make a backedge copy public");
+  _backedge_copy = z;
 }
 
 // Analogous to PhaseIdealLoop::is_in_irreducible_loop
 bool ciTypeFlow::Block::is_in_irreducible_loop() const {
-if (!outer()->has_irreducible_entry()) {
-  return false; // No irreducible loop in method.
-}
-Loop* lp = loop(); // Innermost loop containing block.
-if (lp == nullptr) {
-  assert(!is_post_visited(), "must have enclosing loop once post-visited");
-  return false; // Not yet processed, so we do not know, yet.
-}
-// Walk all the way up the loop-tree, search for an irreducible loop.
-do {
-  if (lp->is_irreducible()) {
-    return true; // We are in irreducible loop.
+  if (!outer()->has_irreducible_entry()) {
+    return false; // No irreducible loop in method.
   }
-  if (lp->head()->pre_order() == 0) {
+  Loop* lp = loop(); // Innermost loop containing block.
+  if (lp == nullptr) {
+    assert(!is_post_visited(), "must have enclosing loop once post-visited");
+    return false; // Not yet processed, so we do not know, yet.
+  }
+  // Walk all the way up the loop-tree, search for an irreducible loop.
+  do {
+    if (lp->is_irreducible()) {
+      return true; // We are in irreducible loop.
+    }
+    if (lp->head()->pre_order() == 0) {
       return false; // Found root loop, terminate.
     }
     lp = lp->parent();
@@ -2571,7 +2570,7 @@ int ciTypeFlow::Loop::profiled_count() {
   if (head() == nullptr){
     return 0;
   }
-  // TODO: Improve this!!!
+  // TODO: Improve this!!! (Can it be improved for dispatching structures?)
   if (head()->is_dispatch()){
     return 1;
   }
@@ -2678,9 +2677,7 @@ bool ciTypeFlow::Loop::at_insertion_point(Loop* lp, Loop* current) {
     return false;
   }
   // In the case of a shared head, make the most frequent head/tail (as reported by profiling) the inner loop
-  //tty->print_cr("Insertion point for:");
   if (current->head() == lp->head()) {
-    //tty->print_cr("Calling profiled_count since shared head");
     int lp_count = lp->profiled_count();
     int current_count = current->profiled_count();
     if (current_count < lp_count) {
@@ -2695,51 +2692,8 @@ bool ciTypeFlow::Loop::at_insertion_point(Loop* lp, Loop* current) {
   return false;
 }
 
-// ------------------------------------------------------------------
-// ciTypeFlow::Loop::sorted_merge
-//
-// Merge the branch lp into this branch, sorting on the loop head
-// pre_orders. Returns the leaf of the merged branch.
-// Child and sibling pointers will be setup later.
-// Sort is (looking from leaf towards the root)
-//  descending on primary key: loop head's pre_order, and
-//  ascending  on secondary key: loop tail's pre_order.
-ciTypeFlow::Loop* ciTypeFlow::Loop::sorted_merge(Loop* lp) {
-  //tty->print_cr("Doing sorted merge on this:");
-  //print(tty);
-  //tty->print_cr("INTO: ");
-  //lp->print(tty);
-  //tty->print_cr("\n");
-  Loop* leaf = this;
-  Loop* prev = nullptr;
-  Loop* current = leaf;
-  while (lp != nullptr) {
-    int lp_pre_order = lp->head()->pre_order();
-    // Find insertion point for "lp"
-    while (current != nullptr) {
-      if (current == lp) {
-        return leaf; // Already in list
-      }
-      if (at_insertion_point(lp, current)) {
-        //tty->print_cr("At insertion point for: ");
-        break;
-      }
-      prev = current;
-      current = current->parent();
-    }
-    Loop* next_lp = lp->parent(); // Save future list of items to insert
-    // Insert lp before current
-    lp->set_parent(current);
-    if (prev != nullptr) {
-      prev->set_parent(lp);
-    } else {
-      leaf = lp;
-    }
-    prev = lp;     // Inserted item is new prev[ious]
-    lp = next_lp;  // Next item to insert
-  }
-  return leaf;
-}
+
+
 
 void ciTypeFlow::print_blocks(outputStream* st) {
   st->print_cr("Outputting the current graph: ");
@@ -2852,26 +2806,6 @@ void ciTypeFlow::connect_pred_dispatch(Block* dispatch, Block* source, Block* so
     Block* pred = source2->predecessors()->at(i);
     dispatch->dispatch()->push(new(a) DispatchInfo(source2->start(), pred, source2)); 
   }
-
-  /*
-    int pred_rpo = pred->rpo();
-    
-    // If the rpo is greater than the ones that has been added, then just add it
-    if (pred_rpo > greatest_added){
-      dispatch->dispatch()->push(src);
-      RPO_in_order->push(pred_rpo);
-      greatest_added++;
-    } else { // Else find the placement where the 
-      for (int j = 0; j < added; ++j) {
-        int prevRPO = RPO_in_order->at(j);
-        if (prevRPO > pred_rpo){
-          RPO_in_order->insert_before(j, pred_rpo);
-          dispatch->dispatch()->push(src);
-        }
-      }
-    }
-
-    added++;*/
 }
 
 // ------------------------------------------------------------------
@@ -2922,8 +2856,6 @@ void ciTypeFlow::connect_dispatch_loop(Block* dispatch, Loop* irr_region) {
 }
 
 
-
-
 // ------------------------------------------------------------------
 	// ciTypeFlow::clone_block
 	//
@@ -2951,8 +2883,6 @@ void ciTypeFlow::connect_dispatch_loop(Block* dispatch, Loop* irr_region) {
 	// Clone block that causes irreducibility
 	void ciTypeFlow::clone_irreducible_block(Block* blk) {
 	  assert(blk->has_pre_order(), "Non-visited nodes should not contribute to irreducibility");
-	  //tty->print_cr("blk %d has %d predecessors and %d successors", blk->dot_id(), blk->predecessors()->length(), blk->successors()->length());
-	  //blk->print_on(tty);
 	  for (int i = 0; i < blk->predecessors()->length(); ++i) {
 	    Block* pred = blk->predecessors()->at(i);
 	    Block* clone = block_at(blk->start(), blk->jsrs(), create_deep_copy);
@@ -2972,11 +2902,8 @@ void ciTypeFlow::connect_dispatch_loop(Block* dispatch, Loop* irr_region) {
       if (_work_list == blk) _work_list = pred;
 	    pred->set_next(clone);
  	  }
-	  //if (!blk->has_post_order()) blk->set_post_order(max_jint); //Temp rework this later...
-	  //add_to_work_list(blk);
 	  blk->successors()->clear();
           blk->predecessors()->clear();
-	  //assert(blk->predecessors()->length() != 1, "Early return");
 	}
 
 void ciTypeFlow::split_dispatch_by_stack(Block* dispatch) {
@@ -2995,27 +2922,21 @@ void ciTypeFlow::split_dispatch_by_stack(Block* dispatch) {
     }
     dispatch->def_locals()->add(pred->def_locals());
   }
-  //StateVector* old = new StateVector(this);
-  //dispatch->copy_state_into(old);
-  //old->set_stack_size(greatest);
-  //old->meet(merged);
-  //dispatch->meet(merged);
 
-tty->print_cr("=== ciTypeFlow state of dispatch block ===");
-tty->print_cr("Stack height is: %d", dispatch->stack_size());
-tty->print_cr("Locals:");
-for (int i = 0; i < _method->max_locals(); i++) {
-  tty->print("  local[%d]: ", i);
-  dispatch->local_type_at(i)->print_name_on(tty);
-  tty->print_cr("");
-}
+  tty->print_cr("=== ciTypeFlow state of dispatch block ===");
+  tty->print_cr("Stack height is: %d", dispatch->stack_size());
+  tty->print_cr("Locals:");
+  for (int i = 0; i < _method->max_locals(); i++) {
+    tty->print("  local[%d]: ", i);
+    dispatch->local_type_at(i)->print_name_on(tty);
+    tty->print_cr("");
+  }
 }
 
   // ------------------------------------------------------------------
   // ciTypeFlow::fix_predecessors
   //
   // Fix the predecessors after we have built dispatchers...
-
   void ciTypeFlow::fix_predecessors() {
     for (int i = 0; i < _method->get_method_blocks()->num_blocks(); ++i){
       GrowableArray<Block*>* blocks = _idx_to_blocklist[i];
@@ -3088,11 +3009,52 @@ for (int i = 0; i < _method->max_locals(); i++) {
     second->successors()->clear();
     second->predecessors()->clear();
 
-tty->print_cr("=== ciTypeFlow state of dispatch block ===");
-tty->print_cr("Stack size: %d", blk->stack_size());
-tty->print_cr("Locals:");
-blk->def_locals()->print_on(tty, 5);      
+  tty->print_cr("=== ciTypeFlow state of dispatch block ===");
+  tty->print_cr("Stack size: %d", blk->stack_size());
+  tty->print_cr("Locals:");
+  blk->def_locals()->print_on(tty, 5);      
+}
+
+
+// ------------------------------------------------------------------
+// ciTypeFlow::Loop::sorted_merge
+//
+// Merge the branch lp into this branch, sorting on the loop head
+// pre_orders. Returns the leaf of the merged branch.
+// Child and sibling pointers will be setup later.
+// Sort is (looking from leaf towards the root)
+//  descending on primary key: loop head's pre_order, and
+//  ascending  on secondary key: loop tail's pre_order.
+ciTypeFlow::Loop* ciTypeFlow::Loop::sorted_merge(Loop* lp) {
+  Loop* leaf = this;
+  Loop* prev = nullptr;
+  Loop* current = leaf;
+  while (lp != nullptr) {
+    int lp_pre_order = lp->head()->pre_order();
+    // Find insertion point for "lp"
+    while (current != nullptr) {
+      if (current == lp) {
+        return leaf; // Already in list
+      }
+      if (at_insertion_point(lp, current)) {
+        break;
+      }
+      prev = current;
+      current = current->parent();
+    }
+    Loop* next_lp = lp->parent(); // Save future list of items to insert
+    // Insert lp before current
+    lp->set_parent(current);
+    if (prev != nullptr) {
+      prev->set_parent(lp);
+    } else {
+      leaf = lp;
+    }
+    prev = lp;     // Inserted item is new prev[ious]
+    lp = next_lp;  // Next item to insert
   }
+  return leaf;
+}
 
 	// ------------------------------------------------------------------
 	// ciTypeFlow::build_loop_tree
@@ -3403,610 +3365,610 @@ blk->def_locals()->print_on(tty, 5);
 	  return this == lp;
 	}
 
-	// ------------------------------------------------------------------
-	// ciTypeFlow::Loop::depth
-	//
-	// Loop depth
-	int ciTypeFlow::Loop::depth() const {
-	  int dp = 0;
-	  for (Loop* lp = this->parent(); lp != nullptr; lp = lp->parent())
-	    dp++;
-	  return dp;
-	}
-
-#ifndef PRODUCT
-	// ------------------------------------------------------------------
-	// ciTypeFlow::Loop::print
-	void ciTypeFlow::Loop::print(outputStream* st, int indent) const {
-	  for (int i = 0; i < indent; i++) st->print(" ");
-	  st->print("%d<-%d %s",
-		    is_root() ? 0 : this->head()->pre_order(),
-		    is_root() ? 0 : this->tail()->pre_order(),
-		    is_irreducible()?" irr":"");
-	  st->print(" defs: ");
-	  def_locals()->print_on(st, _head->outer()->method()->max_locals());
-	  st->cr();
-	  for (Loop* ch = child(); ch != nullptr; ch = ch->sibling())
-	    ch->print(st, indent+2);
-	}
-#endif
-
-	// ------------------------------------------------------------------
-	// ciTypeFlow::df_flow_types
-	//
-	// Perform the depth first type flow analysis. Helper for flow_types.
-	ciTypeFlow::Block* ciTypeFlow::df_flow_types(Block* start,
-				       bool do_flow,
-				       StateVector* temp_vector,
-				       JsrSet* temp_set,
-				       bool handleIrr) {
-    int dft_len = 100;
-	  GrowableArray<Block*> stk(dft_len);
-	  ciBlock* dummy = _method->get_method_blocks()->make_dummy_block();
-	  JsrSet* root_set = new JsrSet(0);
-	  Block* root_head = new (arena()) Block(this, dummy, root_set);
-	  Block* root_tail = new (arena()) Block(this, dummy, root_set);
-	  root_head->set_pre_order(0);
-	  root_head->set_post_order(0);
-	  root_tail->set_pre_order(max_jint);
-	  root_tail->set_post_order(max_jint);
-	  set_loop_tree_root(new (arena()) Loop(root_head, root_tail));
-	  stk.push(start);
-	  
-	  _next_pre_order = 0;  // initialize pre_order counter
-	  _rpo_list = nullptr;
-	  int next_po = 0;      // initialize post_order counter
-	  Block* irreducible = nullptr;
-    // Compute RPO and the control flow graph
-    int size;
-    while ((size = stk.length()) > 0) {
-      Block* blk = stk.top(); // Leave node on stack
-      if (!blk->is_visited()) {
-        // forward arc in graph
-        assert (!blk->has_pre_order(), "");
-        blk->set_next_pre_order();
-
-        if (_next_pre_order >= (int)Compile::current()->max_node_limit() / 2) {
-          // Too many basic blocks.  Bail out.
-          // This can happen when try/finally constructs are nested to depth N,
-          // and there is O(2**N) cloning of jsr bodies.  See bug 4697245!
-          // "MaxNodeLimit / 2" is used because probably the parser will
-          // generate at least twice that many nodes and bail out.
-          record_failure("too many basic blocks");
-          return nullptr;
-        }
-        if (do_flow) {
-          flow_block(blk, temp_vector, temp_set);
-          if (failing()) return irreducible; // Watch for bailouts.
-        }
-      } else if (!blk->is_post_visited()) {
-        // cross or back arc
-        for (SuccIter iter(blk); !iter.done(); iter.next()) {
-          Block* succ = iter.succ();
-          if (!succ->is_visited()) {
-            stk.push(succ);
-          }
-        }
-        if (stk.length() == size) {
-          // There were no additional children, post visit node now
-          stk.pop(); // Remove node from stack
-          if (handleIrr) {
-            Block* irreducible_block = build_loop_tree(blk);
-            if (irreducible_block != nullptr && irreducible == nullptr){
-              irreducible = irreducible_block;
-              if (CIIrrFix) {
-                return irreducible;
-              }
-            }
-            if (CIDispatch  && irreducible_block != nullptr){
-              // Do something here to manipulate the post orders..
-              irreducible_block->set_post_order(next_po++);
-              // If we have created a dispatch block then make sure to add the new successors to the worklist in the correct order
-              // Such that the RPO becomes correct...
-            }
-          }
-          blk->set_post_order(next_po++);   // Assign post order
-          prepend_to_rpo_list(blk);
-          assert(blk->is_post_visited(), "");
-          if (blk->is_loop_head() && !blk->is_on_work_list()) {
-            // Assume loop heads need more data flow
-            add_to_work_list(blk);
-          }
-        }
-      } else {
-        stk.pop(); // Remove post-visited node from stack
-      }
-    }
-    return irreducible;
-  }
-
-	// ------------------------------------------------------------------
-	// ciTypeFlow::flow_types
-	//
-	// Perform the type flow analysis, creating and cloning Blocks as
-	// necessary.
-	void ciTypeFlow::flow_types() {
-	  ResourceMark rm;
-	  StateVector* temp_vector = new StateVector(this);
-	  JsrSet* temp_set = new JsrSet(4);
-
-	  // Create the method entry block.
-	  Block* start = block_at(start_bci(), temp_set);
-
-	  // Load the initial state into it.
-	  const StateVector* start_state = get_start_state();
-	  if (failing())  return;
-	  start->meet(start_state);
-
-	  // Depth first visit
-	  Block* irr_block = df_flow_types(start, true /*do flow*/, temp_vector, temp_set, true); 
-    if (CIPrintLoops) {
-      //dump_dot_graph();
-      GrowableArray<Loop*>* lp_queue = new (arena()) GrowableArray<Loop*>(arena(), 4, 0, nullptr);
-      lp_queue->push(loop_tree_root());
-
-      int num_loops = 0;
-      int totalt_depth = 0;
-      int max_depth = 0;
-      int loop_blk_cnt = 0;
-      int max_cnt = 0;
-
-      while(lp_queue->length() > 0) {
-        Loop* lp = lp_queue->pop();
-
-        //Do calculations
-        num_loops++;
-        totalt_depth += lp->depth();
-        max_depth = lp->depth() > max_depth ? lp->depth() : max_depth;
-        // Add sibling
-        if (lp->sibling() != nullptr) lp_queue->push(lp->sibling());
-        // Add child
-        if (lp->child() != nullptr) lp_queue->push(lp->child());
-
-      }
-
-      tty->print_cr("Totalt loops: %d", num_loops);
-      tty->print_cr("Total depth: %d / avg: %d", totalt_depth, num_loops > 0 ? totalt_depth / num_loops : 0);
-      tty->print_cr("Max depth: %d", max_depth);
-      tty->print_cr("Number of blocks: %d", loop_blk_cnt);
-    }
-
-    int i = 0;
-	  while (irr_block != nullptr && CIIrrFix){
-      if (CIPrintTypeFlowCFGs && i < 1) {
-	      dump_dot_graph();
-	    }
-	   
-	    if(CIIrrDebug) print_blocks(tty);
-      //if (CIIrrFix) clone_irreducible_block(irr_block); 
-	    reset_blocks(start);  
-      //loop_tree_root()->set_child(nullptr);
-	    temp_vector = new StateVector(this);
-	    temp_set    = new JsrSet(4);
-	    // Create the method entry block.
-	    start = block_at(start_bci(), temp_set);
-	    start->meet(start_state);
-
-	    irr_block = df_flow_types(start, true, temp_vector, temp_set, true);
-	    if (CIPrintTypeFlowCFGs && i < 15) {
-	      dump_dot_graph();
-	    }
-	    i = i + 1;
-      if ( i % 50 == 0) {
-	      tty->print_cr("Trying to fix irreducibility: %d", i); 
-        dump_dot_graph();
-      }
-	  }
-	  if (i != 0) {
-      tty->print_cr("Done with node splitting");
-      dump_dot_graph();
-      return; // Early return ... The final steps break the graph for some reason
-	  }
-    if (failing())  return;
-	  assert(_rpo_list == start, "must be start");
-
-	  // Any loops found?
-	  if (loop_tree_root()->child() != nullptr &&
-	      env()->comp_level() >= CompLevel_full_optimization && !CIDispatch) {
-	      // Loop optimizations are not performed on Tier1 compiles.
-	    bool changed = clone_loop_heads(temp_vector, temp_set);
-	    // If some loop heads were cloned, recompute postorder and loop tree
-	    if (changed && CIDispatch  && irr_block != nullptr) { 
-        temp_vector = new StateVector(this);
-	      temp_set    = new JsrSet(4);
-
-        loop_tree_root()->set_child(nullptr);
-	      // Probably that I make the things point at the wrong thing ?
-        reset_blocks(start);
-	      df_flow_types(start, false /*no flow*/, temp_vector, temp_set, false);
-      } else if (changed) {
-        loop_tree_root()->set_child(nullptr);
-	      for (Block* blk = _rpo_list; blk != nullptr;) {
-          Block* next = blk->rpo_next();
-		      blk->df_init();
-		      blk = next;
-	      }
-	      df_flow_types(start, false /*no flow*/, temp_vector, temp_set, true);
-
-      }
-	  }
-    if (CIDispatch ) {
-      fix_predecessors();
-      dump_dot_graph();    
+// ------------------------------------------------------------------
+// ciTypeFlow::Loop::depth
+//
+// Loop depth
+int ciTypeFlow::Loop::depth() const {
+  int dp = 0;
+  for (Loop* lp = this->parent(); lp != nullptr; lp = lp->parent())
+	  dp++;
+  return dp;
 }
 
-	  if (CITraceTypeFlow) {
-	    loop_tree_root()->print();
-	  }
-
-	  // Continue flow analysis until fixed point reached
-
-	  DEBUG_ONLY(int max_block = _next_pre_order;)
-
-	  while (!work_list_empty()) {
-	    Block* blk = work_list_next();
-	    if (CIIrrDebug) tty->print_cr("Checking blk %d for post order", blk->dot_id());
-	    assert (blk->has_post_order(), "post order assigned above");
-
-	    flow_block(blk, temp_vector, temp_set);
-
-	    assert (max_block == _next_pre_order, "no new blocks");
-	    assert (!failing(), "no more bailouts");
-	  }
-	}
-
-	// ------------------------------------------------------------------
-	// ciTypeFlow::map_blocks
-	//
-	// Create the block map, which indexes blocks in reverse post-order.
-	void ciTypeFlow::map_blocks() {
-	  //dump_dot_graph();
-	  assert(_block_map == nullptr, "single initialization");
-	  int block_ct = _next_pre_order;
-	  _block_map = NEW_ARENA_ARRAY(arena(), Block*, block_ct);
-	  assert(block_ct == block_count(), "");
-
-	  Block* blk = _rpo_list;
-	  for (int m = 0; m < block_ct; m++) {
-	    int rpo = blk->rpo();
-	    assert(rpo == m, "should be sequential");
-	    _block_map[rpo] = blk;
-	    blk = blk->rpo_next();
-	  }
-	  assert(blk == nullptr, "should be done");
-          for (int j = 0; j < block_ct; j++) {
-	    assert(_block_map[j] != nullptr, "must not drop any blocks");
-	    Block* block = _block_map[j];
-	    // Remove dead blocks from successor lists:
-	    for (int e = 0; e <= 1; e++) {
-	      GrowableArray<Block*>* l = e? block->exceptions(): block->successors();
-	      for (int k = 0; k < l->length(); k++) {
-		Block* s = l->at(k);
-		if (!s->has_post_order()) {
-		  if (CITraceTypeFlow) {
-		    tty->print("Removing dead %s successor of #%d: ", (e? "exceptional":  "normal"), block->pre_order());
-		    s->print_value_on(tty);
-		    tty->cr();
-		  }
-		  l->remove(s);
-		  --k;
-		}
-	      }
-	    }
-	  }
-	}
-
-	// ------------------------------------------------------------------
-	// ciTypeFlow::get_block_for
-	//
-	// Find a block with this ciBlock which has a compatible JsrSet.
-	// If no such block exists, create it, unless the option is no_create.
-	// If the option is create_backedge_copy, always create a fresh backedge copy.
-	ciTypeFlow::Block* ciTypeFlow::get_block_for(int ciBlockIndex, ciTypeFlow::JsrSet* jsrs, CreateOption option) {
-	  Arena* a = arena();
-	  GrowableArray<Block*>* blocks = _idx_to_blocklist[ciBlockIndex];
-	  if (blocks == nullptr) {
-	    // Query only?
-	    if (option == no_create)  return nullptr;
-
-	    // Allocate the growable array.
-	    blocks = new (a) GrowableArray<Block*>(a, 4, 0, nullptr);
-	    _idx_to_blocklist[ciBlockIndex] = blocks;
-	  }
-
-	  if (option != create_backedge_copy && option != create_deep_copy) {
-	    int len = blocks->length();
-	    for (int i = 0; i < len; i++) {
-	      Block* block = blocks->at(i);
-	      if (!block->is_backedge_copy() && block->is_compatible_with(jsrs)) {
-		return block;
-	      }
-	    }
-	  }
-
-	  // Query only?
-	  if (option == no_create)  return nullptr;
-
-	  // We did not find a compatible block.  Create one.
-	  Block* new_block = new (a) Block(this, _method->get_method_blocks()->block(ciBlockIndex), jsrs);
-	  if (option == create_backedge_copy)  new_block->set_backedge_copy(true);
-	  blocks->append(new_block);
-	  return new_block;
-	}
-
-	// ------------------------------------------------------------------
-	// ciTypeFlow::backedge_copy_count
-	//
-	int ciTypeFlow::backedge_copy_count(int ciBlockIndex, ciTypeFlow::JsrSet* jsrs) const {
-	  GrowableArray<Block*>* blocks = _idx_to_blocklist[ciBlockIndex];
-
-	  if (blocks == nullptr) {
-	    return 0;
-	  }
-
-	  int count = 0;
-	  int len = blocks->length();
-	  for (int i = 0; i < len; i++) {
-	    Block* block = blocks->at(i);
-	    if (block->is_backedge_copy() && block->is_compatible_with(jsrs)) {
-	      count++;
-	    }
-	  }
-
-	  return count;
-	}
-
-	// ------------------------------------------------------------------
-	// ciTypeFlow::do_flow
-	//
-	// Perform type inference flow analysis.
-	void ciTypeFlow::do_flow() {
-	  if (CITraceTypeFlow) {
-	    method()->print();
-	    if (is_osr_flow())  tty->print(" at OSR bci %d", start_bci());
-	    tty->cr();
-	    method()->print_codes();
-	  }
-	  if (CITraceTypeFlow) {
-	    print_on(tty);
-	  }
-	  flow_types();
-	  // Watch for bailouts.
-	  if (failing()) {
-	    return;
-	  }
-
-	  map_blocks();
-
-	  if (CIPrintTypeFlow || CITraceTypeFlow) {
-	    rpo_print_on(tty);
-	  }
-
 #ifndef PRODUCT
-	  if (CIPrintTypeFlowCFGs) {
-	    dump_dot_graph();
-	  }
-	  if (CIIrrDebug) {
-	    print_blocks(tty);
-	  }
-#endif // !PRODUCT
-	}
+// ------------------------------------------------------------------
+// ciTypeFlow::Loop::print
+void ciTypeFlow::Loop::print(outputStream* st, int indent) const {
+  for (int i = 0; i < indent; i++) st->print(" ");
+  st->print("%d<-%d %s",
+      is_root() ? 0 : this->head()->pre_order(),
+      is_root() ? 0 : this->tail()->pre_order(),
+      is_irreducible()?" irr":"");
+  st->print(" defs: ");
+  def_locals()->print_on(st, _head->outer()->method()->max_locals());
+  st->cr();
+  for (Loop* ch = child(); ch != nullptr; ch = ch->sibling())
+    ch->print(st, indent+2);
+}
+#endif
 
-	// ------------------------------------------------------------------
-	// ciTypeFlow::is_dominated_by
-	//
-	// Determine if the instruction at bci is dominated by the instruction at dom_bci.
-	bool ciTypeFlow::is_dominated_by(int bci, int dom_bci) {
-	  assert(!method()->has_jsrs(), "jsrs are not supported");
+// ------------------------------------------------------------------
+// ciTypeFlow::df_flow_types
+//
+// Perform the depth first type flow analysis. Helper for flow_types.
+ciTypeFlow::Block* ciTypeFlow::df_flow_types(Block* start,
+                                             bool do_flow,
+                                             StateVector* temp_vector,
+                                             JsrSet* temp_set,
+                                             bool handleIrr) {
+  int dft_len = 100;
+	GrowableArray<Block*> stk(dft_len);
+	ciBlock* dummy = _method->get_method_blocks()->make_dummy_block();
+	JsrSet* root_set = new JsrSet(0);
+	Block* root_head = new (arena()) Block(this, dummy, root_set);
+	Block* root_tail = new (arena()) Block(this, dummy, root_set);
+	root_head->set_pre_order(0);
+	root_head->set_post_order(0);
+	root_tail->set_pre_order(max_jint);
+	root_tail->set_post_order(max_jint);
+	set_loop_tree_root(new (arena()) Loop(root_head, root_tail));
+	stk.push(start);
 
-	  ResourceMark rm;
-	  JsrSet* jsrs = new ciTypeFlow::JsrSet();
-	  int        index = _method->get_method_blocks()->block_containing(bci)->index();
-	  int    dom_index = _method->get_method_blocks()->block_containing(dom_bci)->index();
-	  Block*     block = get_block_for(index, jsrs, ciTypeFlow::no_create);
-	  Block* dom_block = get_block_for(dom_index, jsrs, ciTypeFlow::no_create);
+	_next_pre_order = 0;  // initialize pre_order counter
+	_rpo_list = nullptr;
+	int next_po = 0;      // initialize post_order counter
+	Block* irreducible = nullptr;
+  // Compute RPO and the control flow graph
+  int size;
+  while ((size = stk.length()) > 0) {
+    Block* blk = stk.top(); // Leave node on stack
+    if (!blk->is_visited()) {
+      // forward arc in graph
+      assert (!blk->has_pre_order(), "");
+      blk->set_next_pre_order();
 
-	  // Start block dominates all other blocks
-	  if (start_block()->rpo() == dom_block->rpo()) {
-	    return true;
-	  }
-
-	  // Dominated[i] is true if block i is dominated by dom_block
-	  int num_blocks = block_count();
-	  bool* dominated = NEW_RESOURCE_ARRAY(bool, num_blocks);
-	  for (int i = 0; i < num_blocks; ++i) {
-	    dominated[i] = true;
-	  }
-	  dominated[start_block()->rpo()] = false;
-
-	  // Iterative dominator algorithm
-	  bool changed = true;
-	  while (changed) {
-	    changed = false;
-	    // Use reverse postorder iteration
-	    for (Block* blk = _rpo_list; blk != nullptr; blk = blk->rpo_next()) {
-	      if (blk->is_start()) {
-		// Ignore start block
-		continue;
-	      }
-	      // The block is dominated if it is the dominating block
-	      // itself or if all predecessors are dominated.
-	      int index = blk->rpo();
-	      bool dom = (index == dom_block->rpo());
-	      if (!dom) {
-		// Check if all predecessors are dominated
-		dom = true;
-		for (int i = 0; i < blk->predecessors()->length(); ++i) {
-		  Block* pred = blk->predecessors()->at(i);
-		  if (!dominated[pred->rpo()]) {
-		    dom = false;
-		    break;
-		  }
-		}
-	      }
-	      // Update dominator information
-	      if (dominated[index] != dom) {
-		changed = true;
-		dominated[index] = dom;
-	      }
-	    }
-	  }
-	  // block dominated by dom_block?
-	  return dominated[block->rpo()];
-	}
-
-	// ------------------------------------------------------------------
-	// ciTypeFlow::record_failure()
-	// The ciTypeFlow object keeps track of failure reasons separately from the ciEnv.
-	// This is required because there is not a 1-1 relation between the ciEnv and
-	// the TypeFlow passes within a compilation task.  For example, if the compiler
-	// is considering inlining a method, it will request a TypeFlow.  If that fails,
-	// the compilation as a whole may continue without the inlining.  Some TypeFlow
-	// requests are not optional; if they fail the requestor is responsible for
-	// copying the failure reason up to the ciEnv.  (See Parse::Parse.)
-	void ciTypeFlow::record_failure(const char* reason) {
-	  if (env()->log() != nullptr) {
-	    env()->log()->elem("failure reason='%s' phase='typeflow'", reason);
-	  }
-	  if (_failure_reason == nullptr) {
-	    // Record the first failure reason.
-	    _failure_reason = reason;
-	  }
-	}
-
-#ifndef PRODUCT
-	void ciTypeFlow::print() const       { print_on(tty); }
-
-	// ------------------------------------------------------------------
-	// ciTypeFlow::print_on
-	void ciTypeFlow::print_on(outputStream* st) const {
-	  // Walk through CI blocks
-	  st->print_cr("********************************************************");
-	  st->print   ("TypeFlow for ");
-	  method()->name()->print_symbol_on(st);
-	  int limit_bci = code_size();
-	  st->print_cr("  %d bytes", limit_bci);
-	  ciMethodBlocks* mblks = _method->get_method_blocks();
-	  ciBlock* current = nullptr;
-	  for (int bci = 0; bci < limit_bci; bci++) {
-	    ciBlock* blk = mblks->block_containing(bci);
-	    if (blk != nullptr && blk != current) {
-	      current = blk;
-	      current->print_on(st);
-
-	      GrowableArray<Block*>* blocks = _idx_to_blocklist[blk->index()];
-	      int num_blocks = (blocks == nullptr) ? 0 : blocks->length();
-
-	      if (num_blocks == 0) {
-		st->print_cr("  No Blocks");
-	      } else {
-		for (int i = 0; i < num_blocks; i++) {
-		  Block* block = blocks->at(i);
-		  block->print_on(st);
-		}
-	      }
-	      st->print_cr("--------------------------------------------------------");
-	      st->cr();
-	    }
-	  }
-	  st->print_cr("********************************************************");
-	  st->cr();
-	}
-
-	void ciTypeFlow::rpo_print_on(outputStream* st) const {
-	  st->print_cr("********************************************************");
-	  st->print   ("TypeFlow for ");
-	  method()->name()->print_symbol_on(st);
-	  int limit_bci = code_size();
-	  st->print_cr("  %d bytes", limit_bci);
-	  for (Block* blk = _rpo_list; blk != nullptr; blk = blk->rpo_next()) {
-	    blk->print_on(st);
-	    st->print_cr("--------------------------------------------------------");
-	    st->cr();
-	  }
-	  st->print_cr("********************************************************");
-	  st->cr();
-	}
-
-
-	int ciTypeFlow::Block::dot_id() const {
-	 
-	  if (has_rpo())       return rpo();
-    //if (has_post_order()) return -post_order();
-    if (has_pre_order()) return pre_order();
-	  return -1;
-	}
-
-	void ciTypeFlow::dump_dot_graph() {
-	  stringStream filename;
-	  Method* method = _method->get_Method();
-	  method->print_file_name(&filename);
-	  int newDot = get_dot();
-	  set_dot(newDot + 1);
-	  filename.print("%d", newDot);
-	  filename.print(".dot");
-	  fileStream* fs = new (mtCompiler) fileStream(filename.as_string(), "w");
-	  fs->print_cr("digraph G {");
-	  fs->print_cr("  fontname=\"Courier\"");
-	  fs->print_cr("  labeldistance=2.0");
-	  stringStream prettyname;
-	  method->print_name(&prettyname);
-	  fs->print_cr("  label=\"\n%s\"", prettyname.freeze());
-	  // Could possibly go through all ciBlocks and then for all ciBlocks we get the related blocks, and then from these we get the successors
-	  Block* first = _rpo_list;
-	 
-	  for (int i = 0; i < _method->get_method_blocks()->num_blocks(); ++i){
-	    GrowableArray<Block*>* blocks = _idx_to_blocklist[i];
-	    if (blocks == nullptr) continue;
-	    for (int j = 0; j < blocks->length(); ++j){
-	      Block* blk = blocks->at(j);
-	      if (blk->has_rpo()) {
-		fs->print_cr("%d [label=<<FONT FACE=\"Courier New\"><b>rpo#%d</b>", blk->rpo(), blk->rpo()); 
-	      } else {
-		fs->print_cr("%d [label=<<FONT FACE=\"Courier New\"><b>pre#%d</b>", blk->dot_id(), blk->dot_id());
-	      }
-	      //fs->print("<br/>");
-	      fs->print("<br align=\"left\"/>");
-	      if (CIIrrDebug && !blk->is_dispatch()) {   
-		stringStream bytecode;
-		Thread *thread = Thread::current();
-		ResourceMark rm(thread);
-		methodHandle mh (thread, method);
-		int flags = ClassPrinter::PRINT_METHOD_NAME |
-			  ClassPrinter::PRINT_BYTECODE |
-			  ClassPrinter::PRINT_GRAPHVIZ_FORMAT;
-		BytecodeTracer::print_method_codes(mh, blk->start(), blk->limit(), &bytecode, flags);
-
-		//method->print_codes_on(blk->start(), blk->limit(), &bytecode);
-		fs->print("%s", bytecode.freeze());
-	      }else{
-	        fs->print("Start: %d", blk->start());
-	      }
-	      fs->print("</FONT>>");
-	      fs->print(", shape=box");
-	      fs->print(", color=\"");
-	      double color = (double) blk->start() / (double) method->code_size();
-	      fs->print("%f 0.8 1.0", color); 
-	      //TODO: Take two first numbers and use it as hex 3 times
-	      fs->print("\"");
-      fs->print("]");
-      fs->cr();
-      if (blk->has_successors()) {
-        for (int i = 0; i < blk->successors()->length(); i++) {
-          Block* succ = blk->successors()->at(i);
-	  if (blk->has_rpo()) {
-	    fs->print_cr("%d -> %d", blk->rpo(), succ->rpo()); 
-	  } else {
-	    fs->print_cr("%d -> %d", blk->dot_id(), succ->dot_id());
-	  }
+      if (_next_pre_order >= (int)Compile::current()->max_node_limit() / 2) {
+        // Too many basic blocks.  Bail out.
+        // This can happen when try/finally constructs are nested to depth N,
+        // and there is O(2**N) cloning of jsr bodies.  See bug 4697245!
+        // "MaxNodeLimit / 2" is used because probably the parser will
+        // generate at least twice that many nodes and bail out.
+        record_failure("too many basic blocks");
+        return nullptr;
+      }
+      if (do_flow) {
+        flow_block(blk, temp_vector, temp_set);
+        if (failing()) return irreducible; // Watch for bailouts.
+      }
+    } else if (!blk->is_post_visited()) {
+      // cross or back arc
+      for (SuccIter iter(blk); !iter.done(); iter.next()) {
+        Block* succ = iter.succ();
+        if (!succ->is_visited()) {
+          stk.push(succ);
         }
-      }   
-    } 
+      }
+      if (stk.length() == size) {
+        // There were no additional children, post visit node now
+        stk.pop(); // Remove node from stack
+        if (handleIrr) {
+          Block* irreducible_block = build_loop_tree(blk);
+          if (irreducible_block != nullptr && irreducible == nullptr){
+            irreducible = irreducible_block;
+            if (CIIrrFix) {
+              return irreducible;
+            }
+          }
+          if (CIDispatch  && irreducible_block != nullptr){
+            // Do something here to manipulate the post orders..
+            irreducible_block->set_post_order(next_po++);
+            // If we have created a dispatch block then make sure to add the new successors to the worklist in the correct order
+            // Such that the RPO becomes correct...
+          }
+        }
+        blk->set_post_order(next_po++);   // Assign post order
+        prepend_to_rpo_list(blk);
+        assert(blk->is_post_visited(), "");
+        if (blk->is_loop_head() && !blk->is_on_work_list()) {
+          // Assume loop heads need more data flow
+          add_to_work_list(blk);
+        }
+      }
+    } else {
+      stk.pop(); // Remove post-visited node from stack
+    }
   }
-    // TODO: print bytecode in each block, print additional block info (irred, etc).
+  return irreducible;
+}
 
-  fs->print_cr("}");
-  fs->close();
+// ------------------------------------------------------------------
+// ciTypeFlow::flow_types
+//
+// Perform the type flow analysis, creating and cloning Blocks as
+// necessary.
+void ciTypeFlow::flow_types() {
+	ResourceMark rm;
+	StateVector* temp_vector = new StateVector(this);
+	JsrSet* temp_set = new JsrSet(4);
+
+	// Create the method entry block.
+	Block* start = block_at(start_bci(), temp_set);
+
+	// Load the initial state into it.
+	const StateVector* start_state = get_start_state();
+	if (failing())  return;
+	start->meet(start_state);
+
+	// Depth first visit
+	Block* irr_block = df_flow_types(start, true /*do flow*/, temp_vector, temp_set, true); 
+  if (CIPrintLoops) {
+    //dump_dot_graph();
+    GrowableArray<Loop*>* lp_queue = new (arena()) GrowableArray<Loop*>(arena(), 4, 0, nullptr);
+    lp_queue->push(loop_tree_root());
+
+    int num_loops = 0;
+    int totalt_depth = 0;
+    int max_depth = 0;
+    int loop_blk_cnt = 0;
+    int max_cnt = 0;
+
+    while(lp_queue->length() > 0) {
+      Loop* lp = lp_queue->pop();
+
+      //Do calculations
+      num_loops++;
+      totalt_depth += lp->depth();
+      max_depth = lp->depth() > max_depth ? lp->depth() : max_depth;
+      // Add sibling
+      if (lp->sibling() != nullptr) lp_queue->push(lp->sibling());
+      // Add child
+      if (lp->child() != nullptr) lp_queue->push(lp->child());
+
+    }
+
+    tty->print_cr("Totalt loops: %d", num_loops);
+    tty->print_cr("Total depth: %d / avg: %d", totalt_depth, num_loops > 0 ? totalt_depth / num_loops : 0);
+    tty->print_cr("Max depth: %d", max_depth);
+    tty->print_cr("Number of blocks: %d", loop_blk_cnt);
+  }
+
+  int i = 0;
+  while (irr_block != nullptr && CIIrrFix){
+    if (CIPrintTypeFlowCFGs && i < 1) {
+      dump_dot_graph();
+    }
+    
+    if(CIIrrDebug) print_blocks(tty);
+    //if (CIIrrFix) clone_irreducible_block(irr_block); 
+    reset_blocks(start);  
+    //loop_tree_root()->set_child(nullptr);
+    temp_vector = new StateVector(this);
+    temp_set    = new JsrSet(4);
+    // Create the method entry block.
+    start = block_at(start_bci(), temp_set);
+    start->meet(start_state);
+
+    irr_block = df_flow_types(start, true, temp_vector, temp_set, true);
+    if (CIPrintTypeFlowCFGs && i < 15) {
+      dump_dot_graph();
+    }
+    i = i + 1;
+    if ( i % 50 == 0) {
+      tty->print_cr("Trying to fix irreducibility: %d", i); 
+      dump_dot_graph();
+    }
+  }
+  if (i != 0) {
+    tty->print_cr("Done with node splitting");
+    dump_dot_graph();
+    return; // Early return ... The final steps break the graph for some reason
+  }
+  if (failing())  return;
+  assert(_rpo_list == start, "must be start");
+
+  // Any loops found?
+  if (loop_tree_root()->child() != nullptr &&
+      env()->comp_level() >= CompLevel_full_optimization && !CIDispatch) {
+      // Loop optimizations are not performed on Tier1 compiles.
+    bool changed = clone_loop_heads(temp_vector, temp_set);
+    // If some loop heads were cloned, recompute postorder and loop tree
+    if (changed && CIDispatch  && irr_block != nullptr) { 
+      temp_vector = new StateVector(this);
+      temp_set    = new JsrSet(4);
+
+      loop_tree_root()->set_child(nullptr);
+      // Probably that I make the things point at the wrong thing ?
+      reset_blocks(start);
+      df_flow_types(start, false /*no flow*/, temp_vector, temp_set, false);
+    } else if (changed) {
+      loop_tree_root()->set_child(nullptr);
+      for (Block* blk = _rpo_list; blk != nullptr;) {
+        Block* next = blk->rpo_next();
+        blk->df_init();
+        blk = next;
+      }
+      df_flow_types(start, false /*no flow*/, temp_vector, temp_set, true);
+
+    }
+  }
+  if (CIDispatch ) {
+    fix_predecessors();
+    dump_dot_graph();    
+}
+
+  if (CITraceTypeFlow) {
+    loop_tree_root()->print();
+  }
+
+  // Continue flow analysis until fixed point reached
+
+  DEBUG_ONLY(int max_block = _next_pre_order;)
+
+  while (!work_list_empty()) {
+    Block* blk = work_list_next();
+    if (CIIrrDebug) tty->print_cr("Checking blk %d for post order", blk->dot_id());
+    assert (blk->has_post_order(), "post order assigned above");
+
+    flow_block(blk, temp_vector, temp_set);
+
+    assert (max_block == _next_pre_order, "no new blocks");
+    assert (!failing(), "no more bailouts");
+  }
+}
+
+// ------------------------------------------------------------------
+// ciTypeFlow::map_blocks
+//
+// Create the block map, which indexes blocks in reverse post-order.
+void ciTypeFlow::map_blocks() {
+  //dump_dot_graph();
+  assert(_block_map == nullptr, "single initialization");
+  int block_ct = _next_pre_order;
+  _block_map = NEW_ARENA_ARRAY(arena(), Block*, block_ct);
+  assert(block_ct == block_count(), "");
+
+  Block* blk = _rpo_list;
+  for (int m = 0; m < block_ct; m++) {
+    int rpo = blk->rpo();
+    assert(rpo == m, "should be sequential");
+    _block_map[rpo] = blk;
+    blk = blk->rpo_next();
+  }
+  assert(blk == nullptr, "should be done");
+        for (int j = 0; j < block_ct; j++) {
+    assert(_block_map[j] != nullptr, "must not drop any blocks");
+    Block* block = _block_map[j];
+    // Remove dead blocks from successor lists:
+    for (int e = 0; e <= 1; e++) {
+      GrowableArray<Block*>* l = e? block->exceptions(): block->successors();
+      for (int k = 0; k < l->length(); k++) {
+        Block* s = l->at(k);
+        if (!s->has_post_order()) {
+          if (CITraceTypeFlow) {
+            tty->print("Removing dead %s successor of #%d: ", (e? "exceptional":  "normal"), block->pre_order());
+            s->print_value_on(tty);
+            tty->cr();
+          }
+          l->remove(s);
+          --k;
+        }
+      }
+    }
+  }
+}
+
+// ------------------------------------------------------------------
+// ciTypeFlow::get_block_for
+//
+// Find a block with this ciBlock which has a compatible JsrSet.
+// If no such block exists, create it, unless the option is no_create.
+// If the option is create_backedge_copy, always create a fresh backedge copy.
+ciTypeFlow::Block* ciTypeFlow::get_block_for(int ciBlockIndex, ciTypeFlow::JsrSet* jsrs, CreateOption option) {
+  Arena* a = arena();
+  GrowableArray<Block*>* blocks = _idx_to_blocklist[ciBlockIndex];
+  if (blocks == nullptr) {
+    // Query only?
+    if (option == no_create)  return nullptr;
+
+    // Allocate the growable array.
+    blocks = new (a) GrowableArray<Block*>(a, 4, 0, nullptr);
+    _idx_to_blocklist[ciBlockIndex] = blocks;
+  }
+
+  if (option != create_backedge_copy && option != create_deep_copy) {
+    int len = blocks->length();
+    for (int i = 0; i < len; i++) {
+      Block* block = blocks->at(i);
+      if (!block->is_backedge_copy() && block->is_compatible_with(jsrs)) {
+        return block;
+      }
+    }
+  }
+
+  // Query only?
+  if (option == no_create)  return nullptr;
+
+  // We did not find a compatible block.  Create one.
+  Block* new_block = new (a) Block(this, _method->get_method_blocks()->block(ciBlockIndex), jsrs);
+  if (option == create_backedge_copy)  new_block->set_backedge_copy(true);
+  blocks->append(new_block);
+  return new_block;
+}
+
+// ------------------------------------------------------------------
+// ciTypeFlow::backedge_copy_count
+//
+int ciTypeFlow::backedge_copy_count(int ciBlockIndex, ciTypeFlow::JsrSet* jsrs) const {
+  GrowableArray<Block*>* blocks = _idx_to_blocklist[ciBlockIndex];
+
+  if (blocks == nullptr) {
+    return 0;
+  }
+
+  int count = 0;
+  int len = blocks->length();
+  for (int i = 0; i < len; i++) {
+    Block* block = blocks->at(i);
+    if (block->is_backedge_copy() && block->is_compatible_with(jsrs)) {
+      count++;
+    }
+  }
+
+  return count;
+}
+
+// ------------------------------------------------------------------
+// ciTypeFlow::do_flow
+//
+// Perform type inference flow analysis.
+void ciTypeFlow::do_flow() {
+  if (CITraceTypeFlow) {
+    method()->print();
+    if (is_osr_flow())  tty->print(" at OSR bci %d", start_bci());
+    tty->cr();
+    method()->print_codes();
+  }
+  if (CITraceTypeFlow) {
+    print_on(tty);
+  }
+  flow_types();
+  // Watch for bailouts.
+  if (failing()) {
+    return;
+  }
+
+  map_blocks();
+
+  if (CIPrintTypeFlow || CITraceTypeFlow) {
+    rpo_print_on(tty);
+  }
+
+#ifndef PRODUCT
+  if (CIPrintTypeFlowCFGs) {
+    dump_dot_graph();
+  }
+  if (CIIrrDebug) {
+    print_blocks(tty);
+  }
+#endif // !PRODUCT
+}
+
+// ------------------------------------------------------------------
+// ciTypeFlow::is_dominated_by
+//
+// Determine if the instruction at bci is dominated by the instruction at dom_bci.
+bool ciTypeFlow::is_dominated_by(int bci, int dom_bci) {
+  assert(!method()->has_jsrs(), "jsrs are not supported");
+
+  ResourceMark rm;
+  JsrSet* jsrs = new ciTypeFlow::JsrSet();
+  int        index = _method->get_method_blocks()->block_containing(bci)->index();
+  int    dom_index = _method->get_method_blocks()->block_containing(dom_bci)->index();
+  Block*     block = get_block_for(index, jsrs, ciTypeFlow::no_create);
+  Block* dom_block = get_block_for(dom_index, jsrs, ciTypeFlow::no_create);
+
+  // Start block dominates all other blocks
+  if (start_block()->rpo() == dom_block->rpo()) {
+    return true;
+  }
+
+  // Dominated[i] is true if block i is dominated by dom_block
+  int num_blocks = block_count();
+  bool* dominated = NEW_RESOURCE_ARRAY(bool, num_blocks);
+  for (int i = 0; i < num_blocks; ++i) {
+    dominated[i] = true;
+  }
+  dominated[start_block()->rpo()] = false;
+
+  // Iterative dominator algorithm
+  bool changed = true;
+  while (changed) {
+    changed = false;
+    // Use reverse postorder iteration
+    for (Block* blk = _rpo_list; blk != nullptr; blk = blk->rpo_next()) {
+      if (blk->is_start()) {
+        // Ignore start block
+        continue;
+      }
+      // The block is dominated if it is the dominating block
+      // itself or if all predecessors are dominated.
+      int index = blk->rpo();
+      bool dom = (index == dom_block->rpo());
+      if (!dom) {
+        // Check if all predecessors are dominated
+        dom = true;
+        for (int i = 0; i < blk->predecessors()->length(); ++i) {
+          Block* pred = blk->predecessors()->at(i);
+          if (!dominated[pred->rpo()]) {
+            dom = false;
+            break;
+          }
+        }
+      }
+      // Update dominator information
+      if (dominated[index] != dom) {
+        changed = true;
+        dominated[index] = dom;
+      }
+    }
+  }
+  // block dominated by dom_block?
+  return dominated[block->rpo()];
+}
+
+// ------------------------------------------------------------------
+// ciTypeFlow::record_failure()
+// The ciTypeFlow object keeps track of failure reasons separately from the ciEnv.
+// This is required because there is not a 1-1 relation between the ciEnv and
+// the TypeFlow passes within a compilation task.  For example, if the compiler
+// is considering inlining a method, it will request a TypeFlow.  If that fails,
+// the compilation as a whole may continue without the inlining.  Some TypeFlow
+// requests are not optional; if they fail the requestor is responsible for
+// copying the failure reason up to the ciEnv.  (See Parse::Parse.)
+void ciTypeFlow::record_failure(const char* reason) {
+  if (env()->log() != nullptr) {
+    env()->log()->elem("failure reason='%s' phase='typeflow'", reason);
+  }
+  if (_failure_reason == nullptr) {
+    // Record the first failure reason.
+    _failure_reason = reason;
+  }
+}
+
+#ifndef PRODUCT
+void ciTypeFlow::print() const       { print_on(tty); }
+
+// ------------------------------------------------------------------
+// ciTypeFlow::print_on
+void ciTypeFlow::print_on(outputStream* st) const {
+  // Walk through CI blocks
+  st->print_cr("********************************************************");
+  st->print   ("TypeFlow for ");
+  method()->name()->print_symbol_on(st);
+  int limit_bci = code_size();
+  st->print_cr("  %d bytes", limit_bci);
+  ciMethodBlocks* mblks = _method->get_method_blocks();
+  ciBlock* current = nullptr;
+  for (int bci = 0; bci < limit_bci; bci++) {
+    ciBlock* blk = mblks->block_containing(bci);
+    if (blk != nullptr && blk != current) {
+      current = blk;
+      current->print_on(st);
+
+      GrowableArray<Block*>* blocks = _idx_to_blocklist[blk->index()];
+      int num_blocks = (blocks == nullptr) ? 0 : blocks->length();
+
+      if (num_blocks == 0) {
+        st->print_cr("  No Blocks");
+      } else {
+        for (int i = 0; i < num_blocks; i++) {
+          Block* block = blocks->at(i);
+          block->print_on(st);
+        }
+      }
+      st->print_cr("--------------------------------------------------------");
+      st->cr();
+    }
+  }
+  st->print_cr("********************************************************");
+  st->cr();
+}
+
+void ciTypeFlow::rpo_print_on(outputStream* st) const {
+  st->print_cr("********************************************************");
+  st->print   ("TypeFlow for ");
+  method()->name()->print_symbol_on(st);
+  int limit_bci = code_size();
+  st->print_cr("  %d bytes", limit_bci);
+  for (Block* blk = _rpo_list; blk != nullptr; blk = blk->rpo_next()) {
+    blk->print_on(st);
+    st->print_cr("--------------------------------------------------------");
+    st->cr();
+  }
+  st->print_cr("********************************************************");
+  st->cr();
+}
+
+
+int ciTypeFlow::Block::dot_id() const {
+  
+  if (has_rpo())       return rpo();
+  //if (has_post_order()) return -post_order();
+  if (has_pre_order()) return pre_order();
+  return -1;
+}
+
+void ciTypeFlow::dump_dot_graph() {
+  stringStream filename;
+  Method* method = _method->get_Method();
+  method->print_file_name(&filename);
+  int newDot = get_dot();
+  set_dot(newDot + 1);
+  filename.print("%d", newDot);
+  filename.print(".dot");
+  fileStream* fs = new (mtCompiler) fileStream(filename.as_string(), "w");
+  fs->print_cr("digraph G {");
+  fs->print_cr("  fontname=\"Courier\"");
+  fs->print_cr("  labeldistance=2.0");
+  stringStream prettyname;
+  method->print_name(&prettyname);
+  fs->print_cr("  label=\"\n%s\"", prettyname.freeze());
+  // Could possibly go through all ciBlocks and then for all ciBlocks we get the related blocks, and then from these we get the successors
+  Block* first = _rpo_list;
+  
+  for (int i = 0; i < _method->get_method_blocks()->num_blocks(); ++i){
+    GrowableArray<Block*>* blocks = _idx_to_blocklist[i];
+    if (blocks == nullptr) continue;
+    for (int j = 0; j < blocks->length(); ++j){
+      Block* blk = blocks->at(j);
+      if (blk->has_rpo()) {
+  fs->print_cr("%d [label=<<FONT FACE=\"Courier New\"><b>rpo#%d</b>", blk->rpo(), blk->rpo()); 
+      } else {
+  fs->print_cr("%d [label=<<FONT FACE=\"Courier New\"><b>pre#%d</b>", blk->dot_id(), blk->dot_id());
+      }
+      //fs->print("<br/>");
+      fs->print("<br align=\"left\"/>");
+      if (CIIrrDebug && !blk->is_dispatch()) {   
+  stringStream bytecode;
+  Thread *thread = Thread::current();
+  ResourceMark rm(thread);
+  methodHandle mh (thread, method);
+  int flags = ClassPrinter::PRINT_METHOD_NAME |
+      ClassPrinter::PRINT_BYTECODE |
+      ClassPrinter::PRINT_GRAPHVIZ_FORMAT;
+  BytecodeTracer::print_method_codes(mh, blk->start(), blk->limit(), &bytecode, flags);
+
+  //method->print_codes_on(blk->start(), blk->limit(), &bytecode);
+  fs->print("%s", bytecode.freeze());
+      }else{
+        fs->print("Start: %d", blk->start());
+      }
+      fs->print("</FONT>>");
+      fs->print(", shape=box");
+      fs->print(", color=\"");
+      double color = (double) blk->start() / (double) method->code_size();
+      fs->print("%f 0.8 1.0", color); 
+      //TODO: Take two first numbers and use it as hex 3 times
+      fs->print("\"");
+    fs->print("]");
+    fs->cr();
+    if (blk->has_successors()) {
+      for (int i = 0; i < blk->successors()->length(); i++) {
+        Block* succ = blk->successors()->at(i);
+  if (blk->has_rpo()) {
+    fs->print_cr("%d -> %d", blk->rpo(), succ->rpo()); 
+  } else {
+    fs->print_cr("%d -> %d", blk->dot_id(), succ->dot_id());
+  }
+      }
+    }   
+  } 
+}
+  // TODO: print bytecode in each block, print additional block info (irred, etc).
+
+fs->print_cr("}");
+fs->close();
 }
 
 #endif // !PRODUCT

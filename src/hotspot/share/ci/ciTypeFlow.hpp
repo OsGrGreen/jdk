@@ -648,14 +648,14 @@ public:
     bool is_dispatch() const   { return _dispatchTargets != nullptr; }
     GrowableArray<DispatchInfo*>*  dispatch()    const   { assert(is_dispatch(), "only dispatcher has dispatch"); return _dispatchTargets; } 
     void sort_dispatch()       { 
-	assert(is_dispatch(), "can only sort dispatch info if dispatcher"); 
-	for(int i = _dispatchTargets->length() - 1; i >= 0; --i) {
-          Block* blk = _dispatchTargets->at(i)->block();
-	  if(!blk->is_reachable()){
-            _dispatchTargets->remove_at(i);
-          }
+	    assert(is_dispatch(), "can only sort dispatch info if dispatcher"); 
+	    for(int i = _dispatchTargets->length() - 1; i >= 0; --i) {
+        Block* blk = _dispatchTargets->at(i)->block();
+	      if(!blk->is_reachable()){
+          _dispatchTargets->remove_at(i);
         }
-	_dispatchTargets->sort(DispatchInfo::compare);
+      }
+	    _dispatchTargets->sort(DispatchInfo::compare);
     }
 
     bool    is_backedge_copy() const       { return _backedge_copy; }
@@ -758,9 +758,10 @@ public:
       return state()->meet_exception(exc, incoming);
     }
 
-    Block* dot_next() const       { if (has_rpo())  return _rpo_next;
-	    			    return _next;
-				  }
+    Block* dot_next() const       { 
+      if (has_rpo())  return _rpo_next;
+	    return _next;
+		}
 
     // Work list manipulation
     void   set_next(Block* block) { _next = block; }
@@ -1066,7 +1067,7 @@ private:
   // Create the block map, which indexes blocks in pre_order.
   void map_blocks();
 
-  public:
+public:
   // Perform type inference flow analysis.
   void do_flow();
   

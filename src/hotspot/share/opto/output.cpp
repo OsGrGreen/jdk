@@ -1844,7 +1844,7 @@ void PhaseOutput::fill_buffer(C2_MacroAssembler* masm, uint* blk_starts) {
 	      tty->print_raw(dump_asm_str.freeze());
 	      tty->print_cr("--------------------------------------------------------------------------------");
 	      if (xtty != nullptr) {
-		xtty->tail("opto_assembly");
+		      xtty->tail("opto_assembly");
 	      }
      }
     }
